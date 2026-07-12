@@ -119,7 +119,7 @@ flowchart TB
 ```text
 backend/
 ├─ main.py                      # 应用入口
-├─ requirements.txt             # 依赖清单
+├─ quirements.txt             # 依赖清单
 ├─ config/
 │  ├─ __init__.py
 │  ├─ settings.py              # 配置管理（数据库、Redis、LLM API）
