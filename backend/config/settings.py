@@ -1,3 +1,4 @@
+#AppSettings 则是整个应用的顶层配置,包含应用名称、运行环境等全局元数据
 import os
 from dataclasses import dataclass
 from typing import Optional
@@ -31,3 +32,4 @@ def get_llm_settings() -> LLMSettings:
 
 def get_setting(key: str, default: Optional[str] = None) -> Optional[str]:
 	return os.getenv(key, default)
+
