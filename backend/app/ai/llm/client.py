@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import json
-import urllib.error
-import urllib.request
 from dataclasses import dataclass
 from typing import Any, Dict, List, Mapping, Optional
 
+import httpx
 from config.settings import LLMSettings, get_llm_settings
 
 
@@ -44,7 +43,7 @@ class LLMClient:
 		messages.append({"role": "user", "content": user_prompt})
 		return messages
 
-	def chat(
+	async def chat(
 		self,
 		user_prompt: str,
 		system_prompt: Optional[str] = None,
@@ -67,41 +66,44 @@ class LLMClient:
 		if extra_payload:
 			payload.update(dict(extra_payload))
 
-		request = urllib.request.Request(
-			self._normalize_url(self.settings.base_url),
-			data=json.dumps(payload).encode("utf-8"),
-			headers={
-				"Content-Type": "application/json",
-				"Authorization": f"Bearer {self.settings.api_key}",
-			},
-			method="POST",
-		)
+		headers = {
+			"Content-Type": "application/json",
+			"Authorization": f"Bearer {self.settings.api_key}",
+		}
 
 		try:
-			with urllib.request.urlopen(request, timeout=self.settings.timeout) as response:
-				body = response.read().decode("utf-8")
-		except urllib.error.URLError as exc:
+			async with httpx.AsyncClient(timeout=self.settings.timeout) as client:
+				response = await client.post(
+					self._normalize_url(self.settings.base_url),
+					json=payload,
+					headers=headers,
+				)
+				response.raise_for_status()
+				raw = response.json()
+		except httpx.HTTPStatusError as exc:
+			raise LLMClientError(f"LLM 调用失败 (HTTP {exc.response.status_code}): {exc.response.text}") from exc
+		except httpx.RequestError as exc:
 			raise LLMClientError(f"LLM 调用失败: {exc}") from exc
 
-		raw = json.loads(body)
 		content = self._extract_content(raw)
 		return LLMResult(content=content, model=payload["model"], raw=raw)
 
-	def generate_text(
+	async def generate_text(
 		self,
 		prompt: str,
 		system_prompt: Optional[str] = None,
 		**kwargs: Any,
 	) -> str:
-		return self.chat(prompt, system_prompt=system_prompt, **kwargs).content
+		result = await self.chat(prompt, system_prompt=system_prompt, **kwargs)
+		return result.content
 
-	def chat_json(
+	async def chat_json(
 		self,
 		user_prompt: str,
 		system_prompt: Optional[str] = None,
 		**kwargs: Any,
 	) -> Dict[str, Any]:
-		result = self.chat(user_prompt, system_prompt=system_prompt, **kwargs)
+		result = await self.chat(user_prompt, system_prompt=system_prompt, **kwargs)
 		try:
 			return json.loads(result.content)
 		except json.JSONDecodeError as exc:
