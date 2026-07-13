@@ -1,31 +1,46 @@
 # 智慧学工职业规划推荐智能体
 
-> 面向高校就业指导场景的一期基础版智能求职服务平台，以简历诊断、岗位匹配和面试准备为主线，先打通最小可用闭环。
+> 面向高校就业指导场景的智能求职服务平台，以简历诊断、岗位匹配和面试准备为主线，帮助学生提升求职效率。
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## 项目说明
 
-本项目围绕高校毕业生求职中的核心痛点展开：简历不知道怎么改、岗位不知道怎么选、面试不知道怎么准备、市场趋势不知道怎么看。当前文档版本以基础任务为准，不再把全部高级能力都当作一期必须完成的内容。
+本项目围绕高校毕业生求职中的核心痛点展开：简历不知道怎么改、岗位不知道怎么选、面试不知道怎么准备、市场趋势不知道怎么看。采用分期实施策略，先完成核心功能的最小可用闭环，再逐步扩展。
 
-### 一期目标
+### 一期目标（本地开发测试）
 
-- 支持简历上传、基础解析、诊断评分和优化建议。
-- 支持岗位画像提取、基础匹配推荐和匹配理由说明。
-- 支持岗位解读、面试题推荐和基础问答辅助。
-- 支持基础就业数据分析与可视化展示。
-- 支持用户偏好、收藏、投递记录等基础管理能力。
+- ✅ 支持简历上传、基础解析、诊断评分和优化建议
+- ✅ 支持岗位画像提取、基础匹配推荐和匹配理由说明
+- ✅ 支持岗位解读、面试题推荐和基础问答辅助
+- ✅ 支持基础就业数据分析与可视化展示
+- ✅ 支持用户偏好、收藏、投递记录等基础管理能力
+- ✅ **本地 Docker 环境部署，完成功能开发和测试验证**
 
-### 角色定位
+### 二期目标（生产服务部署）
 
-- 学生用户：进行简历优化、岗位筛选、面试准备和投递记录管理。
-- 就业指导老师：查看学生就业情况和岗位趋势，用于指导。
-- 平台管理员：维护岗位库、题库、词库和基础配置。
+- ⬜ 更完整的模拟面试系统和经验库
+- ⬜ 更细粒度的就业趋势报告和学院维度分析
+- ⬜ 更完整的权限分级和审计能力
+- ⬜ **生产环境服务器部署，提供在线服务供全校师生访问**
+- ⬜ 配置监控告警、数据备份和高可用性
 
-## 需求文档
+### 用户角色
 
-- 需求分析文档： [REQUIREMENTS.md](REQUIREMENTS.md)
-- 系统架构文档： [ARCHITECTURE.md](ARCHITECTURE.md)
+- **学生用户**：进行简历优化、岗位筛选、面试准备和投递记录管理
+- **就业指导老师**：查看学生就业情况和岗位趋势，用于指导
+- **平台管理员**：维护岗位库、题库、词库和基础配置
+
+## 📚 文档导航
+
+### 需求和架构
+- [REQUIREMENTS.md](REQUIREMENTS.md) - 需求分析文档
+- [ARCHITECTURE.md](ARCHITECTURE.md) - 系统架构设计
+
+### 环境搭建
+- [SETUP.md](SETUP.md) - **本地开发环境搭建指南（一期）**
+- [README-DOCKER-SETUP.md](README-DOCKER-SETUP.md) - Docker 配置说明
+- [deploy/README-PRODUCTION.md](deploy/README-PRODUCTION.md) - 生产环境部署指南（二期）
 
 ## 一期功能范围
 
@@ -85,53 +100,174 @@ flowchart TB
 - AI 能力层负责文本解析、检索增强生成、语义匹配和内容生成。
 - 数据层负责保存岗位、简历、题库、推荐记录和统计数据。
 
-## 技术栈
+## 🛠️ 技术栈
 
 ### 前端
-
-- React 18 或 Vue 3
-- Ant Design 或 Element Plus
+- React 18 + TypeScript
+- Ant Design Pro
+- Vite
 - ECharts
 
 ### 后端
+- FastAPI 0.139.0
+- Python 3.10.20
+- Pydantic 2.13.4
+- SQLAlchemy 2.0.51
 
-- FastAPI 或 Spring Boot
-- PostgreSQL 或 MySQL
-- MongoDB
-- Redis
+### 数据库
+- PostgreSQL 15（关系型数据库）
+- OpenSearch 2.11.1（搜索引擎 + 向量检索 + IK 中文分词）
+- Redis 7.2（缓存和会话管理）
 
 ### AI 能力
-
-- 大语言模型 API
-- 向量检索组件
-- 关键词抽取与文本结构化
-- RAG 检索增强生成
+- 国内 LLM API（通义千问/智谱/DeepSeek/月之暗面）
+- OpenSearch k-NN 向量检索
+- 语义匹配和 RAG 检索增强生成
 
 ### 部署
+- **一期**：Docker Compose 本地部署
+- **二期**：生产服务器 + Nginx 反向代理 + HTTPS
 
-- Docker / Docker Compose
-- Nginx
-
-## 推荐目录结构
+## 📁 项目结构
 
 ```text
-project-root/
-├─ README.md
-├─ REQUIREMENTS.md
-├─ ARCHITECTURE.md
-├─ backend/
-├─ frontend/
-├─ docs/
-├─ scripts/
-└─ deploy/
+career-planning-agent/
+├─ README.md                      # 项目说明（本文件）
+├─ REQUIREMENTS.md                # 需求分析文档
+├─ ARCHITECTURE.md                # 架构设计文档
+├─ SETUP.md                       # 环境搭建指南
+├─ .env.example                   # 环境变量模板
+├─ docker-compose.yml             # Docker 开发环境配置
+├─ Makefile                       # 快捷命令
+├─ backend/                       # 后端代码
+│  ├─ main.py                     # FastAPI 应用入口
+│  ├─ requirements.txt            # Python 依赖
+│  ├─ Dockerfile                  # 后端镜像
+│  ├─ config/                     # 配置模块
+│  └─ app/                        # 应用代码
+├─ frontend/                      # 前端代码
+│  ├─ src/                        # 源代码
+│  ├─ package.json                # Node 依赖
+│  └─ Dockerfile.dev              # 前端开发镜像
+├─ deploy/                        # 部署配置
+│  ├─ nginx.conf                  # Nginx 配置
+│  ├─ docker-compose.prod.yml     # 生产环境配置
+│  └─ README-PRODUCTION.md        # 生产部署指南
+├─ scripts/                       # 脚本文件
+│  └─ init_db.sql                 # 数据库初始化
+├─ docker/                        # Docker 相关
+├─ logs/                          # 日志目录
+└─ uploads/                       # 上传文件目录
 ```
 
-## 快速开始
+## 🚀 快速开始
 
-1. 克隆仓库。
-2. 配置环境变量。
-3. 安装前后端依赖。
-4. 初始化数据库和基础数据。
-5. 启动前后端服务。
+### 前置要求
+- Docker Desktop 29.6.1+
+- Python 3.10.20
+- Node.js 22.14.0
+- Git
 
-如果当前仓库还没有完整代码工程，可以先把需求文档和架构文档作为项目交付依据，再按一期范围逐步补代码。
+### 1. 克隆仓库
+```bash
+git clone https://github.com/your-repo/career-planning-agent.git
+cd career-planning-agent
+```
+
+### 2. 配置环境变量
+```bash
+# 复制环境变量模板
+cp .env.example backend/.env
+
+# 编辑配置文件，修改以下必需项：
+# - LLM_API_KEY（LLM API 密钥）
+# - EMBEDDING_API_KEY（Embedding API 密钥）
+# - JWT_SECRET_KEY（JWT 密钥）
+vim backend/.env
+```
+
+### 3. 启动开发环境
+```bash
+# 启动所有服务
+make up
+
+# 或使用 docker-compose
+docker-compose up -d
+
+# 查看服务状态
+make status
+```
+
+### 4. 安装 OpenSearch IK 分词器
+```bash
+# 等待 OpenSearch 启动后（约 30 秒）
+make opensearch-ik
+```
+
+### 5. 访问服务
+- **后端 API 文档**: http://localhost:8000/docs
+- **前端开发服务器**: http://localhost:5173
+- **OpenSearch Dashboards**: http://localhost:5601
+- **Nginx 反向代理**: http://localhost:80
+
+详细步骤请查看 [SETUP.md](SETUP.md)
+
+## 📖 常用命令
+
+```bash
+# 查看所有可用命令
+make help
+
+# 启动服务
+make up
+
+# 停止服务
+make down
+
+# 查看日志
+make logs
+
+# 进入后端容器
+make shell-backend
+
+# 运行测试
+make test
+
+# 数据库操作
+make init-db
+make backup
+```
+
+## 🔧 开发指南
+
+### 后端开发
+1. 后端代码在 `backend/` 目录
+2. 修改代码后自动热重载
+3. API 文档: http://localhost:8000/docs
+
+### 前端开发
+1. 前端代码在 `frontend/` 目录
+2. 修改代码后自动热重载
+3. 访问: http://localhost:5173
+
+### 数据库
+- PostgreSQL: `localhost:5432`
+- Redis: `localhost:6379`
+- OpenSearch: `http://localhost:9200`
+
+## 📦 二期部署
+
+二期将部署到生产服务器，提供在线服务。详细指南请查看：
+- [deploy/README-PRODUCTION.md](deploy/README-PRODUCTION.md)
+
+## 📝 许可证
+
+本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+## 📮 联系方式
+
+如有问题，请联系项目团队。

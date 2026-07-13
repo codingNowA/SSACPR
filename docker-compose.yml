@@ -1,0 +1,175 @@
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: career-postgres
+    environment:
+      POSTGRES_USER: career_user
+      POSTGRES_PASSWORD: career_password
+      POSTGRES_DB: career_planning
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - career-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U career_user -d career_planning"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis 缓存
+  redis:
+    image: redis:7.2-alpine
+    container_name: career-redis
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - career-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # OpenSearch 节点（带 IK 分词器）
+  opensearch:
+    image: opensearchproject/opensearch:2.11.1
+    container_name: career-opensearch
+    environment:
+      - cluster.name=career-cluster
+      - node.name=opensearch-node1
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "DISABLE_INSTALL_DEMO_CONFIG=true"
+      - "DISABLE_SECURITY_PLUGIN=true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+      - ./docker/opensearch/plugins:/usr/share/opensearch/plugins
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    networks:
+      - career-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # OpenSearch Dashboards（调试用）
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.11.1
+    container_name: career-opensearch-dashboards
+    environment:
+      - OPENSEARCH_HOSTS=http://opensearch:9200
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+    ports:
+      - "5601:5601"
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    networks:
+      - career-network
+    restart: unless-stopped
+
+  # FastAPI 后端服务
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: career-backend
+    environment:
+      - APP_ENV=development
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=career_user
+      - POSTGRES_PASSWORD=career_password
+      - POSTGRES_DB=career_planning
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - OPENSEARCH_HOST=opensearch
+      - OPENSEARCH_PORT=9200
+      - OPENSEARCH_USER=admin
+      - OPENSEARCH_PASSWORD=admin
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    networks:
+      - career-network
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+
+  # React 前端服务（开发模式）
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: career-frontend
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+      - VITE_APP_ENV=development
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - career-network
+    command: npm run dev -- --host 0.0.0.0
+    restart: unless-stopped
+
+  # Nginx 反向代理
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: career-nginx
+    ports:
+      - "8080:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ./uploads:/usr/share/nginx/uploads:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - career-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  opensearch_data:
+
+networks:
+  career-network:
+    driver: bridge

@@ -105,14 +105,88 @@ flowchart TB
 
 一期建议采用轻量、易落地的技术组合：
 
-- 前端：React 18 或 Vue 3，配合 ECharts 做展示。
-- 后端：FastAPI 或 Spring Boot，负责接口编排与业务逻辑。
-- 数据库：PostgreSQL 或 MySQL 存业务数据，MongoDB 存非结构化内容。
-- 向量检索：Milvus、Qdrant 或同类向量库。
-- 缓存：Redis。
-- 部署：Docker 和 Docker Compose，前端可由 Nginx 托管。
+- 前端：React 18 + TypeScript + Ant Design Pro，配合 ECharts 做展示。
+- 后端：FastAPI，负责接口编排与业务逻辑。
+- 数据库：
+  - PostgreSQL 存业务数据（用户、简历、岗位、匹配记录）
+  - OpenSearch 存岗位索引和向量数据（全文检索 + 语义匹配）
+  - Redis 做缓存和会话管理
+- 部署：
+  - **一期**：Docker 和 Docker Compose 本地部署，用于开发测试和功能验证
+  - **二期**：生产环境服务器部署，使用 Nginx 反向代理，支持 HTTPS 和域名访问
 
 ## 6. 详细代码架构
+
+### 6.0 项目整体目录结构
+
+```text
+career-planning-agent/
+├─ README.md                      # 项目说明
+├─ REQUIREMENTS.md                # 需求分析文档
+├─ ARCHITECTURE.md                # 架构设计文档
+├─ SETUP.md                       # 环境搭建指南
+├─ README-DOCKER-SETUP.md         # Docker 配置说明
+├─ .env.example                   # 环境变量模板
+├─ .gitignore                     # Git 忽略文件
+├─ .dockerignore                  # Docker 忽略文件
+├─ docker-compose.yml             # Docker 服务编排配置
+├─ Makefile                       # 快捷命令集合
+├─ LICENSE                        # 开源协议
+│
+├─ backend/                       # 后端代码目录
+│  ├─ main.py                     # FastAPI 应用入口
+│  ├─ requirements.txt            # Python 依赖清单
+│  ├─ Dockerfile                  # 后端镜像构建文件
+│  ├─ .env                        # 环境变量（本地，不提交）
+│  ├─ pytest.ini                  # pytest 配置
+│  ├─ config/                     # 配置模块
+│  ├─ app/                        # 应用核心代码
+│  ├─ tests/                      # 测试代码
+│  └─ scripts/                    # 后端脚本
+│
+├─ frontend/                      # 前端代码目录
+│  ├─ package.json                # Node.js 依赖清单
+│  ├─ package-lock.json           # 依赖锁定文件
+│  ├─ tsconfig.json               # TypeScript 配置
+│  ├─ vite.config.ts              # Vite 构建配置
+│  ├─ Dockerfile.dev              # 前端开发镜像
+│  ├─ Dockerfile                  # 前端生产镜像
+│  ├─ .eslintrc.js                # ESLint 配置
+│  ├─ public/                     # 静态资源
+│  ├─ src/                        # 源代码
+│  └─ tests/                      # 测试代码
+│
+├─ deploy/                        # 部署配置目录
+│  ├─ nginx.conf                  # Nginx 配置文件
+│  ├─ docker-compose.prod.yml     # 生产环境 Docker 配置
+│  └─ k8s/                        # Kubernetes 配置（可选）
+│
+├─ docker/                        # Docker 相关配置
+│  └─ opensearch/                 # OpenSearch 配置
+│     ├─ plugins/                 # OpenSearch 插件目录
+│     └─ opensearch.yml           # OpenSearch 配置文件（可选）
+│
+├─ scripts/                       # 项目级脚本
+│  ├─ init_db.sql                 # PostgreSQL 初始化脚本
+│  ├─ init_db.py                  # 数据库初始化 Python 脚本
+│  ├─ seed_data.py                # 测试数据填充脚本
+│  └─ backup_db.sh                # 数据库备份脚本
+│
+├─ docs/                          # 项目文档目录（可选）
+│  ├─ api/                        # API 文档
+│  ├─ deployment/                 # 部署文档
+│  └─ development/                # 开发文档
+│
+├─ logs/                          # 应用日志目录（运行时生成）
+│  ├─ backend.log
+│  ├─ error.log
+│  └─ access.log
+│
+└─ uploads/                       # 用户上传文件目录（运行时生成）
+   ├─ resumes/                    # 简历文件
+   ├─ temp/                       # 临时文件
+   └─ .gitkeep
+```
 
 ### 6.1 后端架构（FastAPI）
 
@@ -657,22 +731,49 @@ project-root/
 ├─ README.md
 ├─ REQUIREMENTS.md
 ├─ ARCHITECTURE.md
-├─ frontend/
-├─ backend/
-├─ docs/
-├─ scripts/
-└─ deploy/
+├─ .env.example              # 环境变量模板
+├─ .dockerignore             # Docker 忽略文件
+├─ docker-compose.yml        # Docker 服务编排
+├─ Makefile                  # 快捷命令
+├─ frontend/                 # 前端代码
+├─ backend/                  # 后端代码
+├─ docs/                     # 文档目录（可选）
+├─ scripts/                  # 脚本文件
+│  └─ init_db.sql           # 数据库初始化脚本
+├─ deploy/                   # 部署配置
+│  └─ nginx.conf            # Nginx 配置文件
+├─ docker/                   # Docker 相关配置
+│  └─ opensearch/           # OpenSearch 配置
+│     └─ plugins/           # OpenSearch 插件目录
+├─ logs/                     # 应用日志目录（运行时生成）
+└─ uploads/                  # 用户上传文件目录（运行时生成）
 ```
 
-## 7. 扩展方向
+## 8. 扩展方向（二期目标）
 
 一期完成后，可逐步增加以下能力：
 
+### 8.1 功能扩展
 - 更完整的模拟面试与反馈体系。
 - 更细粒度的就业趋势报告和学院维度分析。
-- 更复杂的模型路由、提示词管理和可解释性追溯。
+- 更复杂的算法调优、内容运营和学校管理看板。
 - 更完整的权限分级、内容安全和审计能力。
+- 多模型切换、推理过程追溯与更细粒度安全管控。
 
-## 8. 小结
+### 8.2 部署升级
+- **生产环境服务器部署**：
+  - 部署到云服务器（阿里云/腾讯云/学校服务器）
+  - 配置域名和 HTTPS 证书
+  - 使用 `deploy/docker-compose.prod.yml` 生产配置
+  - 配置 CI/CD 自动部署流水线
+  - 添加监控告警（Prometheus + Grafana）
+  - 数据库主从复制和定期备份
+  - 负载均衡和高可用性配置
 
-这套架构的核心思路是：先用简历诊断和岗位匹配打通主流程，再用岗位解读、面试辅助和基础分析形成闭环，最后再扩展到更完整的就业指导平台。
+## 9. 小结
+
+这套架构的核心思路是：
+
+**一期**：先用简历诊断和岗位匹配打通主流程，再用岗位解读、面试辅助和基础分析形成闭环。在本地 Docker 环境中完成开发、测试和功能验证。
+
+**二期**：在一期功能基础上，部署到生产服务器，提供在线服务供全校师生访问，同时扩展更完整的就业指导平台功能。
