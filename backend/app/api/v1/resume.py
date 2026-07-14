@@ -13,10 +13,12 @@ from app.schemas.resume import (
     ResumeParseRequest,
 )
 from app.schemas.resume_structured import ResumeExtractResponse
+from app.schemas.resume_score import ResumeScoreRequest, ResumeScoreResponse
 from app.schemas.common import ApiResponse
 from app.utils.file_handler import file_handler, FileHandlerError
 from app.core.resume import resume_parser, ResumeParserError
 from app.core.resume.extractor import resume_extractor, ResumeExtractorError
+from app.core.resume.scorer import resume_scorer, ResumeScorerError
 
 
 router = APIRouter(prefix="/resume", tags=["简历管理"])
@@ -216,6 +218,87 @@ async def extract_resume_structure(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"结构化提取失败: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"服务器错误: {str(e)}"
+        )
+
+
+@router.post("/score", response_model=ApiResponse[ResumeScoreResponse])
+async def score_resume(
+    file: UploadFile = Depends(validate_resume_file),
+    job_title: Optional[str] = None,
+    job_description: Optional[str] = None,
+):
+    """
+    上传简历并进行多维度评分
+
+    该接口会：
+    1. 解析简历文件
+    2. 提取结构化信息
+    3. 进行多维度评分：完整性、专业性、量化程度、项目深度、岗位匹配
+    4. 返回评分结果和改进建议
+
+    Args:
+        file: 简历文件
+        job_title: 目标岗位（可选，用于岗位匹配评分）
+        job_description: 岗位描述（可选）
+
+    Returns:
+        评分结果
+    """
+    try:
+        # 1. 保存为临时文件
+        file_path = await file_handler.save_temp_file(file)
+
+        # 2. 解析文件，提取文本
+        parse_result = resume_parser.parse(file_path)
+        resume_text = parse_result['text']
+
+        # 3. 使用 LLM 提取结构化数据
+        structured_data = await resume_extractor.extract_structured_data(resume_text)
+
+        # 4. 评分
+        score = await resume_scorer.score_resume(
+            structured_data=structured_data,
+            resume_text=resume_text,
+            job_title=job_title,
+            job_description=job_description,
+            required_skills=None
+        )
+
+        response_data = ResumeScoreResponse(
+            score=score,
+            message="评分成功"
+        )
+
+        return ApiResponse(
+            code=200,
+            message="评分成功",
+            data=response_data
+        )
+
+    except FileHandlerError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"文件处理失败: {str(e)}"
+        )
+    except ResumeParserError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"文本提取失败: {str(e)}"
+        )
+    except ResumeExtractorError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"结构化提取失败: {str(e)}"
+        )
+    except ResumeScorerError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"评分失败: {str(e)}"
         )
     except Exception as e:
         raise HTTPException(
