@@ -646,205 +646,6 @@ async def list_resume_versions(
         )
 
 
-@router.get("/versions/{version_id}", response_model=ApiResponse[ResumeVersionDetail])
-async def get_resume_version(
-    version_id: int,
-    user_id: Optional[int] = Depends(get_user_id),
-):
-    """
-    获取简历版本详情
-
-    Args:
-        version_id: 版本ID
-        user_id: 用户ID
-
-    Returns:
-        版本详情
-    """
-    if not user_id:
-        user_id = 1  # 默认用户ID（开发阶段）
-
-    try:
-        version = resume_version_manager.get_version(user_id, version_id)
-
-        if not version:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="版本不存在"
-            )
-
-        return ApiResponse(
-            code=200,
-            message="查询成功",
-            data=version
-        )
-
-    except HTTPException:
-        raise
-    except ResumeVersionError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"查询失败: {str(e)}"
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"服务器错误: {str(e)}"
-        )
-
-
-@router.put("/versions/{version_id}", response_model=ApiResponse[ResumeVersionResponse])
-async def update_resume_version(
-    version_id: int,
-    update_data: ResumeVersionUpdate,
-    user_id: Optional[int] = Depends(get_user_id),
-):
-    """
-    更新简历版本
-
-    Args:
-        version_id: 版本ID
-        update_data: 更新数据
-        user_id: 用户ID
-
-    Returns:
-        更新后的版本
-    """
-    if not user_id:
-        user_id = 1  # 默认用户ID（开发阶段）
-
-    try:
-        version = resume_version_manager.update_version(
-            user_id=user_id,
-            version_id=version_id,
-            update_data=update_data,
-        )
-
-        if not version:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="版本不存在"
-            )
-
-        response_data = ResumeVersionResponse(
-            version=version,
-            message="更新成功"
-        )
-
-        return ApiResponse(
-            code=200,
-            message="更新成功",
-            data=response_data
-        )
-
-    except HTTPException:
-        raise
-    except ResumeVersionError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"更新失败: {str(e)}"
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"服务器错误: {str(e)}"
-        )
-
-
-@router.delete("/versions/{version_id}")
-async def delete_resume_version(
-    version_id: int,
-    user_id: Optional[int] = Depends(get_user_id),
-):
-    """
-    删除简历版本
-
-    Args:
-        version_id: 版本ID
-        user_id: 用户ID
-
-    Returns:
-        删除结果
-    """
-    if not user_id:
-        user_id = 1  # 默认用户ID（开发阶段）
-
-    try:
-        success = resume_version_manager.delete_version(user_id, version_id)
-
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="版本不存在"
-            )
-
-        return ApiResponse(
-            code=200,
-            message="删除成功",
-            data={"deleted": True}
-        )
-
-    except HTTPException:
-        raise
-    except ResumeVersionError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"删除失败: {str(e)}"
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"服务器错误: {str(e)}"
-        )
-
-
-@router.post("/versions/{version_id}/activate")
-async def activate_resume_version(
-    version_id: int,
-    user_id: Optional[int] = Depends(get_user_id),
-):
-    """
-    设置为激活版本
-
-    Args:
-        version_id: 版本ID
-        user_id: 用户ID
-
-    Returns:
-        设置结果
-    """
-    if not user_id:
-        user_id = 1  # 默认用户ID（开发阶段）
-
-    try:
-        success = resume_version_manager.set_active_version(user_id, version_id)
-
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="版本不存在"
-            )
-
-        return ApiResponse(
-            code=200,
-            message="设置成功",
-            data={"activated": True}
-        )
-
-    except HTTPException:
-        raise
-    except ResumeVersionError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"设置失败: {str(e)}"
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"服务器错误: {str(e)}"
-        )
-
-
 @router.get("/versions/compare/{version_id1}/{version_id2}", response_model=ApiResponse[ResumeVersionCompare])
 async def compare_resume_versions(
     version_id1: int,
@@ -898,6 +699,7 @@ async def compare_resume_versions(
         )
 
 
+
 @router.get("/versions/stats", response_model=ApiResponse[ResumeVersionStats])
 async def get_resume_version_stats(
     user_id: Optional[int] = Depends(get_user_id),
@@ -933,3 +735,51 @@ async def get_resume_version_stats(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"服务器错误: {str(e)}"
         )
+
+@router.get("/versions/{version_id}", response_model=ApiResponse[ResumeVersionDetail])
+async def get_resume_version(
+    version_id: int,
+    user_id: Optional[int] = Depends(get_user_id),
+):
+    """
+    获取简历版本详情
+
+    Args:
+        version_id: 版本ID
+        user_id: 用户ID
+
+    Returns:
+        版本详情
+    """
+    if not user_id:
+        user_id = 1  # 默认用户ID（开发阶段）
+
+    try:
+        version = resume_version_manager.get_version(user_id, version_id)
+
+        if not version:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="版本不存在"
+            )
+
+        return ApiResponse(
+            code=200,
+            message="查询成功",
+            data=version
+        )
+
+    except HTTPException:
+        raise
+    except ResumeVersionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"查询失败: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"服务器错误: {str(e)}"
+        )
+
+

@@ -74,8 +74,8 @@ class LLMClient:
 		try:
 			async with httpx.AsyncClient(
 				timeout=self.settings.timeout,
-				verify=True,
-				follow_redirects=True,
+				verify=self.settings.verify_ssl,  # 从配置读取 SSL 验证选项
+				follow_redirects=False,  # 禁用重定向以防止 SSRF 风险
 			) as client:
 				response = await client.post(
 					self._normalize_url(self.settings.base_url),
