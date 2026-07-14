@@ -6,6 +6,7 @@ COMPOSE = docker-compose
 # 默认目标
 help:
 	@echo "可用命令："
+	@echo "  make deploy         - 一键部署（构建+启动+初始化+测试数据）"
 	@echo "  make install        - 安装依赖（Python + Node.js）"
 	@echo "  make dev            - 启动开发环境"
 	@echo "  make up             - 启动所有 Docker 服务"
@@ -18,6 +19,24 @@ help:
 	@echo "  make init-db        - 初始化数据库"
 	@echo "  make seed-data      - 填充测试数据"
 	@echo "  make opensearch-ik  - 安装 OpenSearch IK 分词器"
+
+# 一键部署
+deploy:
+	@echo "===== SSACPR 一键部署 ====="
+	@if not exist .env (echo [!] .env 不存在，请先复制 .env.example 并填写配置 && exit 1)
+	$(COMPOSE) up -d --build
+	@echo "等待服务就绪..."
+	@timeout /t 15 /nobreak >nul
+	@echo "检查数据库表..."
+	@$(COMPOSE) exec -T postgres psql -U career_user -d career_planning -c "SELECT count(*) as table_count FROM information_schema.tables WHERE table_schema='public';"
+	@echo "检查岗位数据..."
+	@$(COMPOSE) exec -T postgres psql -U career_user -d career_planning -c "SELECT count(*) as job_count FROM jobs;"
+	@echo "录入测试岗位数据（如不足）..."
+	@docker cp scripts\seed_jobs.sql career-postgres:/tmp/seed_jobs.sql
+	@$(COMPOSE) exec -T postgres psql -U career_user -d career_planning -c "SELECT count(*) FROM jobs WHERE source='seed_test';" | findstr "0" >nul && ($(COMPOSE) exec -T postgres psql -U career_user -d career_planning -f /tmp/seed_jobs.sql) || echo "测试数据已存在"
+	@echo "===== 部署完成 ====="
+	@echo "API 文档: http://localhost:8000/docs"
+	@echo "前端:     http://localhost:5173"
 
 # 安装依赖
 install:
