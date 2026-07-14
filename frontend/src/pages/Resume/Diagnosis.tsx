@@ -129,7 +129,18 @@ const ResumeDiagnosis: React.FC = () => {
     );
   }
 
-  const { scores, suggestions, optimized_sections } = diagnosisResult;
+  // 后端返回的数据结构：{ resume_id, scores: {...} }
+  const scores = diagnosisResult.scores || diagnosisResult;
+
+  // 从 dimensions 中提取建议
+  const suggestions = scores.dimensions?.map((dim: any) => ({
+    type: dim.score >= 80 ? 'success' : dim.score >= 60 ? 'warning' : 'error',
+    importance: dim.score < 60 ? '重要' : dim.score < 80 ? '中等' : '建议',
+    content: dim.feedback,
+    dimension: dim.name,
+  })) || [];
+
+  const optimized_sections = diagnosisResult.optimized_sections || [];
 
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
