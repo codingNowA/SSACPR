@@ -44,7 +44,7 @@ CREATE INDEX idx_resumes_user_id ON resumes(user_id);
 CREATE INDEX idx_resumes_status ON resumes(status);
 CREATE INDEX idx_resumes_created_at ON resumes(created_at DESC);
 
--- 岗位表
+-- 岗位表（新增 company_type 字段）
 CREATE TABLE IF NOT EXISTS jobs (
     id SERIAL PRIMARY KEY,
     title VARCHAR(200) NOT NULL,
@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     description TEXT,
     requirements TEXT,
     job_profile JSONB,
+    company_type VARCHAR(50),
     status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'expired')),
     source VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

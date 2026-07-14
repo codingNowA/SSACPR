@@ -113,6 +113,7 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - ./scripts:/app/scripts
       - ./uploads:/app/uploads
       - ./logs:/app/logs
     depends_on:
