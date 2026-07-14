@@ -71,17 +71,39 @@ make status
 
 #### 步骤 1：下载 IK 分词器插件包
 
-在浏览器中下载以下文件到项目根目录：
+**方式 1：浏览器下载（推荐）**
+
+打开浏览器，访问以下地址下载插件包到**项目根目录**：
 ```
 https://release.infinilabs.com/analysis-ik/stable/opensearch-analysis-ik-2.11.1.zip
 ```
 
-备用下载地址：
+**方式 2：命令行下载**
+
+```bash
+# Linux / macOS
+wget https://release.infinilabs.com/analysis-ik/stable/opensearch-analysis-ik-2.11.1.zip
+
+# Windows PowerShell
+Invoke-WebRequest -Uri "https://release.infinilabs.com/analysis-ik/stable/opensearch-analysis-ik-2.11.1.zip" -OutFile "opensearch-analysis-ik-2.11.1.zip"
+
+# 使用 curl（如果已安装）
+curl -L -O https://release.infinilabs.com/analysis-ik/stable/opensearch-analysis-ik-2.11.1.zip
+```
+
+**备用下载地址**：
 ```
 https://github.com/medcl/elasticsearch-analysis-ik/releases
 ```
 
+**确认文件下载完成**：
+- 文件名：`opensearch-analysis-ik-2.11.1.zip`
+- 文件大小：约 4.4 MB
+- 位置：项目根目录（与 `docker-compose.yml` 同级）
+
 #### 步骤 2：执行安装命令
+
+##### Linux / macOS 系统
 
 ```bash
 # 使用 Makefile 自动安装（推荐）
@@ -92,25 +114,73 @@ unzip -q opensearch-analysis-ik-2.11.1.zip -d analysis-ik-temp
 docker cp analysis-ik-temp/. career-opensearch:/usr/share/opensearch/plugins/analysis-ik/
 docker exec -u root career-opensearch sh -c "chown -R opensearch:opensearch /usr/share/opensearch/plugins/analysis-ik"
 rm -rf analysis-ik-temp
-docker-compose -p career-planning restart opensearch
+docker-compose restart opensearch
+```
+
+##### Windows 系统（PowerShell）
+
+**注意**：Windows 系统需要使用 PowerShell 的内置解压功能，不能直接使用 `make opensearch-ik`。
+
+```powershell
+# 1. 解压插件包到临时目录
+Expand-Archive -Path opensearch-analysis-ik-2.11.1.zip -DestinationPath analysis-ik-temp -Force
+
+# 2. 在容器中创建插件目录
+docker exec career-opensearch mkdir -p /usr/share/opensearch/plugins/analysis-ik
+
+# 3. 复制插件文件到容器（分步复制所有文件）
+# 复制 JAR 文件
+docker cp analysis-ik-temp/opensearch-analysis-ik-2.11.1.jar career-opensearch:/usr/share/opensearch/plugins/analysis-ik/
+docker cp analysis-ik-temp/plugin-descriptor.properties career-opensearch:/usr/share/opensearch/plugins/analysis-ik/
+docker cp analysis-ik-temp/plugin-security.policy career-opensearch:/usr/share/opensearch/plugins/analysis-ik/
+
+# 复制依赖库
+docker cp analysis-ik-temp/commons-codec-1.11.jar career-opensearch:/usr/share/opensearch/plugins/analysis-ik/
+docker cp analysis-ik-temp/commons-logging-1.2.jar career-opensearch:/usr/share/opensearch/plugins/analysis-ik/
+docker cp analysis-ik-temp/httpclient-4.5.13.jar career-opensearch:/usr/share/opensearch/plugins/analysis-ik/
+docker cp analysis-ik-temp/httpcore-4.4.13.jar career-opensearch:/usr/share/opensearch/plugins/analysis-ik/
+
+# 复制 config 目录
+docker exec career-opensearch mkdir -p /usr/share/opensearch/plugins/analysis-ik/config
+docker cp analysis-ik-temp/config/. career-opensearch:/usr/share/opensearch/plugins/analysis-ik/config/
+
+# 4. 修复文件权限
+docker exec -u root career-opensearch chown -R opensearch:opensearch /usr/share/opensearch/plugins/analysis-ik
+
+# 5. 清理临时文件
+Remove-Item -Recurse -Force analysis-ik-temp
+
+# 6. 重启 OpenSearch 容器
+docker-compose restart opensearch
+```
+
+**Windows 一键安装脚本**（可选）：
+
+为了简化操作，你也可以将上述命令保存为脚本文件 `install-ik.ps1`，然后执行：
+```powershell
+# 运行安装脚本
+.\install-ik.ps1
 ```
 
 #### 步骤 3：验证安装
 
-等待 OpenSearch 重启完成（约 10 秒），然后验证：
+等待 OpenSearch 重启完成（约 30 秒），然后验证：
 
 ```bash
-# 查看已安装的插件
+# 方法 1：查看已安装的插件（应显示 analysis-ik）
 curl http://localhost:9200/_cat/plugins
 
-# 测试 IK 智能分词
+# 方法 2：使用 docker exec 查看
+docker exec career-opensearch /usr/share/opensearch/bin/opensearch-plugin list
+
+# 方法 3：测试 IK 智能分词
 curl -X POST "http://localhost:9200/_analyze" -H 'Content-Type: application/json' -d'
 {
   "analyzer": "ik_smart",
   "text": "我想找一份软件工程师的工作"
 }'
 
-# 测试 IK 最大分词
+# 方法 4：测试 IK 最大分词
 curl -X POST "http://localhost:9200/_analyze" -H 'Content-Type: application/json' -d'
 {
   "analyzer": "ik_max_word",
@@ -118,7 +188,30 @@ curl -X POST "http://localhost:9200/_analyze" -H 'Content-Type: application/json
 }'
 ```
 
-预期输出应包含分词结果，如：`{"tokens":[...]}`
+**预期输出示例**：
+```json
+{
+  "tokens": [
+    {
+      "token": "我",
+      "start_offset": 0,
+      "end_offset": 1,
+      "type": "CN_CHAR",
+      "position": 0
+    },
+    {
+      "token": "想找",
+      "start_offset": 1,
+      "end_offset": 3,
+      "type": "CN_WORD",
+      "position": 1
+    },
+    ...
+  ]
+}
+```
+
+如果看到分词结果，说明 IK 分词器安装成功！
 
 ### 6. 初始化数据库
 
