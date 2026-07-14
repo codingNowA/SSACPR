@@ -2,7 +2,7 @@
  * 路由配置
  */
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import MainLayout from '../components/Layout/MainLayout';
+import MainLayout from '../components/layout/MainLayout';
 import Home from '../pages/Home';
 import ResumeUpload from '../pages/Resume/Upload';
 import ResumeDiagnosis from '../pages/Resume/Diagnosis';
