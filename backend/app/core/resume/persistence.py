@@ -6,42 +6,10 @@
 import json
 import logging
 from typing import Dict, Any
-import asyncpg
-import os
+
+from app.services.job_service import get_db_pool
 
 logger = logging.getLogger(__name__)
-
-_db_pool: asyncpg.Pool = None
-
-
-async def get_db_pool() -> asyncpg.Pool:
-    """获取数据库连接池（单例模式）
-
-    环境变量与 docker-compose.yml 中 backend 容器一致：
-    POSTGRES_HOST / POSTGRES_PORT / POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB
-    """
-    global _db_pool
-
-    if _db_pool is None:
-        _db_pool = await asyncpg.create_pool(
-            host=os.getenv("POSTGRES_HOST", "localhost"),
-            port=int(os.getenv("POSTGRES_PORT", "5432")),
-            user=os.getenv("POSTGRES_USER", "career_user"),
-            password=os.getenv("POSTGRES_PASSWORD", ""),
-            database=os.getenv("POSTGRES_DB", "career_planning"),
-            min_size=2,
-            max_size=10,
-        )
-
-    return _db_pool
-
-
-async def close_db_pool() -> None:
-    """关闭数据库连接池"""
-    global _db_pool
-    if _db_pool:
-        await _db_pool.close()
-        _db_pool = None
 
 
 async def save_parsed_data_to_db(
