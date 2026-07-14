@@ -5,8 +5,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.core.auth import get_current_user
 from app.schemas.common import ApiResponse
 from app.schemas.job import JobMatchRequest, JobMatchResponse, MatchHistoryResponse
 from app.services.match_service import job_matcher
@@ -15,7 +16,10 @@ router = APIRouter(prefix="/match", tags=["岗位匹配"])
 
 
 @router.post("/calculate", summary="计算岗位匹配")
-async def calculate_match(request: JobMatchRequest) -> ApiResponse[JobMatchResponse]:
+async def calculate_match(
+    request: JobMatchRequest,
+    _user: dict = Depends(get_current_user),
+) -> ApiResponse[JobMatchResponse]:
     """
     根据简历和用户偏好计算岗位匹配度
 
@@ -38,6 +42,7 @@ async def get_match_history(
     user_id: Optional[int] = Query(default=None, description="用户 ID"),
     page: int = Query(default=1, ge=1, description="页码"),
     page_size: int = Query(default=20, ge=1, le=100, description="每页数量"),
+    _user: dict = Depends(get_current_user),
 ) -> ApiResponse[MatchHistoryResponse]:
     """查询匹配历史记录"""
     if resume_id is None and user_id is None:
@@ -55,6 +60,7 @@ async def get_match_history(
 @router.post("/explain", summary="解释匹配原因")
 async def explain_match(
     match_id: int = Query(..., description="匹配记录 ID"),
+    _user: dict = Depends(get_current_user),
 ) -> ApiResponse[dict]:
     """
     对已有的匹配记录生成更详细的匹配解释
@@ -100,12 +106,12 @@ async def explain_match(
                 missing_skills=missing_skills or [],
             ),
             system_prompt=EXPLAIN_SYSTEM_PROMPT,
-            temperature=0.5,
         )
 
         return ApiResponse.success(data={
             "match_id": match_id,
             "explanation": explanation,
+            "original_reason": row["reason"],
         })
     except HTTPException:
         raise

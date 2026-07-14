@@ -1,15 +1,19 @@
 """
 LLM 客户端封装 - 兼容 OpenAI API 格式
 修复: _normalize_url 不再重复追加 /v1 前缀
+安全: 日志中不输出 API Key 等敏感信息
 """
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Mapping, Optional
 
 import httpx
 from config.settings import LLMSettings, get_llm_settings
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -75,6 +79,9 @@ class LLMClient:
             "Authorization": f"Bearer {self.settings.api_key}",
         }
 
+        # 日志仅记录模型名称，不记录请求体（可能含敏感内容）和 API Key
+        logger.debug("LLM request: model=%s", payload["model"])
+
         try:
             async with httpx.AsyncClient(timeout=self.settings.timeout) as client:
                 response = await client.post(
@@ -85,9 +92,12 @@ class LLMClient:
                 response.raise_for_status()
                 raw = response.json()
         except httpx.HTTPStatusError as exc:
-            raise LLMClientError(f"LLM 调用失败 (HTTP {exc.response.status_code}): {exc.response.text}") from exc
+            # 错误日志不包含 response 完整内容（可能含 API Key 等敏感信息）
+            logger.error("LLM call failed: HTTP %s", exc.response.status_code)
+            raise LLMClientError(f"LLM 调用失败 (HTTP {exc.response.status_code})") from exc
         except httpx.RequestError as exc:
-            raise LLMClientError(f"LLM 调用失败: {exc}") from exc
+            logger.error("LLM call failed: %s", type(exc).__name__)
+            raise LLMClientError(f"LLM 调用失败: {type(exc).__name__}") from exc
 
         content = self._extract_content(raw)
         return LLMResult(content=content, model=payload["model"], raw=raw)

@@ -107,8 +107,8 @@ services:
       - REDIS_PORT=6379
       - OPENSEARCH_HOST=opensearch
       - OPENSEARCH_PORT=9200
-      - OPENSEARCH_USER=admin
-      - OPENSEARCH_PASSWORD=admin
+      - OPENSEARCH_USER=${OPENSEARCH_USER:-admin}
+      - OPENSEARCH_PASSWORD=${OPENSEARCH_PASSWORD:-admin}
       - LLM_PROVIDER=${LLM_PROVIDER:-openaipy}
       - LLM_BASE_URL=${LLM_BASE_URL:-}
       - LLM_API_KEY=${LLM_API_KEY:-}
