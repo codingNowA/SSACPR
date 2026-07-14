@@ -130,17 +130,17 @@ const ResumeDiagnosis: React.FC = () => {
   }
 
   // 后端返回的数据结构：{ resume_id, scores: {...} }
-  const scores = diagnosisResult.scores || diagnosisResult;
+  const scores = diagnosisResult?.scores || {};
 
   // 从 dimensions 中提取建议
-  const suggestions = scores.dimensions?.map((dim: any) => ({
+  const suggestions = scores?.dimensions?.map((dim: any) => ({
     type: dim.score >= 80 ? 'success' : dim.score >= 60 ? 'warning' : 'error',
     importance: dim.score < 60 ? '重要' : dim.score < 80 ? '中等' : '建议',
     content: dim.feedback,
     dimension: dim.name,
   })) || [];
 
-  const optimized_sections = diagnosisResult.optimized_sections || [];
+  const optimized_sections = diagnosisResult?.optimized_sections || [];
 
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
@@ -183,8 +183,8 @@ const ResumeDiagnosis: React.FC = () => {
               <div style={{ textAlign: 'center' }}>
                 <Progress
                   type="circle"
-                  percent={scores.overall}
-                  strokeColor={getScoreColor(scores.overall)}
+                  percent={scores.total_score || 0}
+                  strokeColor={getScoreColor(scores.total_score || 0)}
                   format={(percent) => (
                     <div>
                       <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{percent}</div>
@@ -204,29 +204,29 @@ const ResumeDiagnosis: React.FC = () => {
                 <div>
                   <Text>完整性</Text>
                   <Progress
-                    percent={scores.completeness}
-                    strokeColor={getScoreColor(scores.completeness)}
+                    percent={scores.completeness?.total_score || 0}
+                    strokeColor={getScoreColor(scores.completeness?.total_score || 0)}
                   />
                 </div>
                 <div>
                   <Text>专业性</Text>
                   <Progress
-                    percent={scores.professionalism}
-                    strokeColor={getScoreColor(scores.professionalism)}
+                    percent={scores.professionalism?.total_score || 0}
+                    strokeColor={getScoreColor(scores.professionalism?.total_score || 0)}
                   />
                 </div>
                 <div>
                   <Text>量化程度</Text>
                   <Progress
-                    percent={scores.quantification}
-                    strokeColor={getScoreColor(scores.quantification)}
+                    percent={scores.quantification?.total_score || 0}
+                    strokeColor={getScoreColor(scores.quantification?.total_score || 0)}
                   />
                 </div>
                 <div>
                   <Text>项目深度</Text>
                   <Progress
-                    percent={scores.project_depth}
-                    strokeColor={getScoreColor(scores.project_depth)}
+                    percent={scores.project_depth?.total_score || 0}
+                    strokeColor={getScoreColor(scores.project_depth?.total_score || 0)}
                   />
                 </div>
                 <div>
