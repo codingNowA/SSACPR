@@ -459,34 +459,84 @@ class JobMatcher:
         return self._build_profile_from_parsed(parsed)
 
     def _build_profile_from_parsed(self, parsed: Dict[str, Any]) -> ResumeProfile:
-        """将 parsed_data JSON 转换为 ResumeProfile"""
-        skills = parsed.get("skills", [])
-        if isinstance(skills, str):
-            skills = [s.strip() for s in skills.split(",") if s.strip()]
-
+        """
+        将 parsed_data JSON 转换为 ResumeProfile
+        
+        兼容两种数据格式：
+        1. 简历模块格式（嵌套结构）
+        2. 匹配服务原格式（扁平结构）
+        """
+        # ===== 提取技能 =====
+        skills = []
+        skills_data = parsed.get("skills", [])
+        
+        if isinstance(skills_data, str):
+            # 格式: "Python,Java,Go"
+            skills = [s.strip() for s in skills_data.split(",") if s.strip()]
+        elif isinstance(skills_data, list):
+            if skills_data and isinstance(skills_data[0], dict):
+                # 简历模块格式: [{"name": "Python", "level": "熟练", "category": "编程语言"}]
+                skills = [skill.get("name") for skill in skills_data if skill.get("name")]
+            else:
+                # 匹配服务格式: ["Python", "Java"]
+                skills = [s for s in skills_data if isinstance(s, str)]
+        
+        # ===== 提取姓名 =====
+        # 简历模块格式: basic_info.name
+        # 匹配服务格式: name
+        name = None
+        if "basic_info" in parsed and isinstance(parsed["basic_info"], dict):
+            name = parsed["basic_info"].get("name")
+        if not name:
+            name = parsed.get("name")
+        
+        # ===== 提取求职意向 =====
+        # 简历模块格式: basic_info.job_intention
+        # 匹配服务格式: target_position
+        target_position = None
+        if "basic_info" in parsed and isinstance(parsed["basic_info"], dict):
+            target_position = parsed["basic_info"].get("job_intention")
+        if not target_position:
+            target_position = parsed.get("target_position")
+        
+        # ===== 提取教育经历 =====
         education_raw = parsed.get("education", [])
-        education = [edu for edu in education_raw if isinstance(edu, dict)] if isinstance(education_raw, list) else []
-
-        experience_raw = parsed.get("experience", [])
-        experience = [exp for exp in experience_raw if isinstance(exp, dict)] if isinstance(experience_raw, list) else []
-
-        projects_raw = parsed.get("projects", [])
-        projects = [proj for proj in projects_raw if isinstance(proj, dict)] if isinstance(projects_raw, list) else []
-
+        education = []
+        if isinstance(education_raw, list):
+            education = [edu for edu in education_raw if isinstance(edu, dict)]
+        
+        # ===== 提取工作经历 =====
+        # 简历模块格式: work_experience
+        # 匹配服务格式: experience
+        experience_raw = parsed.get("work_experience") or parsed.get("experience", [])
+        experience = []
+        if isinstance(experience_raw, list):
+            experience = [exp for exp in experience_raw if isinstance(exp, dict)]
+        
+        # ===== 提取项目经验 =====
+        # 简历模块格式: project_experience
+        # 匹配服务格式: projects
+        projects_raw = parsed.get("project_experience") or parsed.get("projects", [])
+        projects = []
+        if isinstance(projects_raw, list):
+            projects = [proj for proj in projects_raw if isinstance(proj, dict)]
+        
+        # ===== 提取自我评价 =====
+        summary = parsed.get("summary") or parsed.get("self_evaluation")
+        
+        # ===== 提取目标行业 =====
+        target_industry = parsed.get("target_industry")
+        
         return ResumeProfile(
-            name=parsed.get("name"),
+            name=name,
             skills=skills,
             education=education,
             experience=experience,
             projects=projects,
-            summary=parsed.get("summary") or parsed.get("self_evaluation"),
-            target_position=parsed.get("target_position"),
-            target_industry=parsed.get("target_industry"),
+            summary=summary,
+            target_position=target_position,
+            target_industry=target_industry,
         )
-
-    # ----------------------------------------------------------
-    # 匹配记录持久化
-    # ----------------------------------------------------------
 
     async def _save_match_records(
         self, resume_id: int, results: List[JobMatchResult]

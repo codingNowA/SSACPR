@@ -28,6 +28,7 @@ from app.schemas.resume_version import (
 from app.schemas.common import ApiResponse
 from app.utils.file_handler import file_handler, FileHandlerError
 from app.core.resume import resume_parser, ResumeParserError
+from app.core.resume.persistence import save_parsed_data_to_db
 from app.core.resume.extractor import resume_extractor, ResumeExtractorError
 from app.core.resume.scorer import resume_scorer, ResumeScorerError
 from app.core.resume.optimizer import resume_optimizer, ResumeOptimizerError
@@ -204,6 +205,21 @@ async def extract_resume_structure(
 
         # 使用 LLM 提取结构化数据
         structured_data = await resume_extractor.extract_structured_data(resume_text)
+
+        # 保存到数据库（供匹配服务使用）
+        try:
+            # TODO: 从认证中获取真实 user_id，这里暂时使用测试值
+            user_id = 1
+            resume_id = await save_parsed_data_to_db(
+                user_id=user_id,
+                file_path=file_path,
+                file_type=file.content_type or "application/octet-stream",
+                structured_data=structured_data.model_dump(),
+            )
+            print(f"✅ 简历数据已保存到数据库，resume_id={resume_id}")
+        except Exception as db_err:
+            # 数据库保存失败不影响接口返回
+            print(f"⚠️ 数据库保存失败（不影响返回）: {db_err}")
 
         response_data = ResumeExtractResponse(
             text=resume_text,

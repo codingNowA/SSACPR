@@ -4,7 +4,9 @@ FastAPI 应用入口
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import resume_router
+from app.api.v1.resume import router as resume_router
+from app.api.v1.job import router as job_router
+from app.api.v1.match import router as match_router
 
 app = FastAPI(
     title="职业规划智能体系统",
@@ -25,6 +27,8 @@ app.add_middleware(
 
 # 注册路由
 app.include_router(resume_router, prefix="/api/v1")
+app.include_router(job_router, prefix="/api/v1")
+app.include_router(match_router, prefix="/api/v1")
 
 
 @app.get("/")
@@ -37,6 +41,7 @@ async def root():
         "features": {
             "resume_parsing": "支持 PDF、Word、图片格式简历解析",
             "resume_upload": "支持简历上传和管理",
+            "job_matching": "支持岗位精准匹配",
         }
     }
 
