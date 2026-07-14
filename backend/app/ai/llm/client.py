@@ -72,7 +72,11 @@ class LLMClient:
 		}
 
 		try:
-			async with httpx.AsyncClient(timeout=self.settings.timeout) as client:
+			async with httpx.AsyncClient(
+				timeout=self.settings.timeout,
+				verify=True,
+				follow_redirects=True,
+			) as client:
 				response = await client.post(
 					self._normalize_url(self.settings.base_url),
 					json=payload,
@@ -113,6 +117,8 @@ class LLMClient:
 		normalized = base_url.rstrip("/")
 		if normalized.endswith("/chat/completions"):
 			return normalized
+		if normalized.endswith("/v1"):
+			return f"{normalized}/chat/completions"
 		return f"{normalized}/v1/chat/completions"
 
 	def _extract_content(self, raw: Mapping[str, Any]) -> str:

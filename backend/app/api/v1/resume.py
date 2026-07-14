@@ -12,9 +12,11 @@ from app.schemas.resume import (
     ResumeParseResponse,
     ResumeParseRequest,
 )
+from app.schemas.resume_structured import ResumeExtractResponse
 from app.schemas.common import ApiResponse
 from app.utils.file_handler import file_handler, FileHandlerError
 from app.core.resume import resume_parser, ResumeParserError
+from app.core.resume.extractor import resume_extractor, ResumeExtractorError
 
 
 router = APIRouter(prefix="/resume", tags=["简历管理"])
@@ -150,6 +152,70 @@ async def parse_resume_by_path(request: ResumeParseRequest):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"解析失败: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"服务器错误: {str(e)}"
+        )
+
+
+@router.post("/extract", response_model=ApiResponse[ResumeExtractResponse])
+async def extract_resume_structure(
+    file: UploadFile = Depends(validate_resume_file),
+):
+    """
+    上传并提取简历结构化信息
+
+    该接口会：
+    1. 保存简历文件
+    2. 提取文本内容
+    3. 使用 LLM 提取结构化信息（基本信息、教育经历、实习经历、项目经验、技能标签）
+    4. 返回结构化数据
+
+    Args:
+        file: 简历文件
+
+    Returns:
+        结构化提取结果
+    """
+    try:
+        # 保存为临时文件
+        file_path = await file_handler.save_temp_file(file)
+
+        # 解析文件，提取文本
+        parse_result = resume_parser.parse(file_path)
+        resume_text = parse_result['text']
+
+        # 使用 LLM 提取结构化数据
+        structured_data = await resume_extractor.extract_structured_data(resume_text)
+
+        response_data = ResumeExtractResponse(
+            text=resume_text,
+            structured_data=structured_data,
+            message="提取成功"
+        )
+
+        return ApiResponse(
+            code=200,
+            message="提取成功",
+            data=response_data
+        )
+
+    except FileHandlerError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"文件处理失败: {str(e)}"
+        )
+    except ResumeParserError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"文本提取失败: {str(e)}"
+        )
+    except ResumeExtractorError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"结构化提取失败: {str(e)}"
         )
     except Exception as e:
         raise HTTPException(
