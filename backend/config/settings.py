@@ -3,6 +3,10 @@ import os
 from dataclasses import dataclass
 from typing import Optional
 
+# 启动时加载 .env 文件到环境变量
+from dotenv import load_dotenv
+load_dotenv()
+
 
 @dataclass(frozen=True)
 class LLMSettings:
@@ -32,4 +36,3 @@ def get_llm_settings() -> LLMSettings:
 
 def get_setting(key: str, default: Optional[str] = None) -> Optional[str]:
 	return os.getenv(key, default)
-
