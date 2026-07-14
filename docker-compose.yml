@@ -3,10 +3,8 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: career-postgres
+    env_file: ./backend/.env
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-career_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-career_planning}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     ports:
       - "5432:5432"
@@ -96,27 +94,15 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: career-backend
+    env_file: ./backend/.env
     environment:
       - APP_ENV=development
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
-      - POSTGRES_USER=${POSTGRES_USER:-career_user}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB:-career_planning}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - OPENSEARCH_HOST=opensearch
       - OPENSEARCH_PORT=9200
-      - OPENSEARCH_USER=${OPENSEARCH_USER:-admin}
-      - OPENSEARCH_PASSWORD=${OPENSEARCH_PASSWORD:-admin}
-      - LLM_PROVIDER=${LLM_PROVIDER:-openaipy}
-      - LLM_BASE_URL=${LLM_BASE_URL:-}
-      - LLM_API_KEY=${LLM_API_KEY:-}
-      - LLM_MODEL=${LLM_MODEL:-deepseek-v4-flash}
-      - LLM_TIMEOUT=${LLM_TIMEOUT:-100}
-      - LLM_MAX_RETRIES=${LLM_MAX_RETRIES:-3}
-      - LLM_TEMPERATURE=${LLM_TEMPERATURE:-0.7}
-      - LLM_DRY_RUN=${LLM_DRY_RUN:-false}
     ports:
       - "8000:8000"
     volumes:

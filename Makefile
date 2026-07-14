@@ -1,11 +1,12 @@
-.PHONY: help install dev up down logs clean test lint format init-db seed-data
+.PHONY: help install dev up start down logs clean test lint format init-db seed-data
 
-# Docker Compose 命令（不指定 -p，使用目录名作为项目名，与 docker-compose up 保持一致）
+# Docker Compose 命令（env_file 统一从 backend/.env 读取）
 COMPOSE = docker-compose
 
 # 默认目标
 help:
 	@echo "可用命令："
+	@echo "  make deploy         - 一键部署（构建+启动+初始化+测试数据）"
 	@echo "  make install        - 安装依赖（Python + Node.js）"
 	@echo "  make dev            - 启动开发环境"
 	@echo "  make up             - 启动所有 Docker 服务"
@@ -18,6 +19,25 @@ help:
 	@echo "  make init-db        - 初始化数据库"
 	@echo "  make seed-data      - 填充测试数据"
 	@echo "  make opensearch-ik  - 安装 OpenSearch IK 分词器"
+
+# 一键部署
+deploy:
+	@echo "===== SSACPR 一键部署 ====="
+	@test -f backend/.env || (echo "[!] backend/.env 不存在，请先复制 .env.example 到 backend/.env 并填写配置" && exit 1)
+	@$(COMPOSE) up -d --build
+	@echo "等待服务就绪..."
+	@sleep 15
+	@echo "检查数据库表..."
+	@$(COMPOSE) exec -T postgres psql -U career_user -d career_planning -c "SELECT count(*) as table_count FROM information_schema.tables WHERE table_schema='public';"
+	@echo "检查岗位数据..."
+	@$(COMPOSE) exec -T postgres psql -U career_user -d career_planning -c "SELECT count(*) as job_count FROM jobs;"
+	@echo "录入测试岗位数据（如不足）..."
+	@docker cp scripts/seed_jobs.sql career-postgres:/tmp/seed_jobs.sql
+	@docker exec career-postgres psql -U career_user -d career_planning -t -c "SELECT COUNT(*) FROM jobs WHERE source='seed_test';" 2>/dev/null | grep -q "^ *0$$" && \
+		$(COMPOSE) exec -T postgres psql -U career_user -d career_planning -f /tmp/seed_jobs.sql || echo "测试数据已存在"
+	@echo "===== 部署完成 ====="
+	@echo "API 文档: http://localhost:8000/docs"
+	@echo "前端:     http://localhost:5173"
 
 # 安装依赖
 install:
@@ -35,10 +55,21 @@ dev: up
 	@echo "OpenSearch Dashboards: http://localhost:5601"
 	@echo "Nginx: http://localhost:80"
 
-# 启动所有服务
+# 启动所有服务（跨平台兼容）
 up:
-	$(COMPOSE) up -d
-	@echo "服务已启动"
+	@echo ===== 启动 SSACPR 系统 =====
+	@echo [1/2] 启动 Docker 服务...
+	$(COMPOSE) up -d --build
+	@echo [2/2] 等待服务就绪...
+	@ping 127.0.0.1 -n 16 >nul 2>&1 || sleep 15 2>/dev/null || echo ""
+	@echo ===== 启动完成 =====
+	@echo
+	@echo 访问地址:
+	@echo   API 文档: http://localhost:8000/docs
+	@echo   前端:     http://localhost:5173
+	@echo   Nginx:    http://localhost:8080
+	@echo
+	@echo 提示: 数据库和测试数据会在首次启动时自动初始化
 
 # 停止所有服务
 down:
