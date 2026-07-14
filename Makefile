@@ -1,10 +1,7 @@
 .PHONY: help install dev up down logs clean test lint format init-db seed-data
 
-# 项目名称（避免中文目录名问题）
-PROJECT_NAME = career-planning
-
-# Docker Compose 命令
-COMPOSE = docker-compose -p $(PROJECT_NAME)
+# Docker Compose 命令（不指定 -p，使用目录名作为项目名，与 docker-compose up 保持一致）
+COMPOSE = docker-compose
 
 # 默认目标
 help:
@@ -51,7 +48,7 @@ down:
 logs:
 	$(COMPOSE) logs -f
 
-# 清理所有容器和数据
+# 清理所有容器和数据数据
 clean:
 	$(COMPOSE) down -v
 	@echo "已清理所有容器和数据卷"
@@ -69,13 +66,13 @@ lint:
 format:
 	cd backend && ruff format .
 
-# 初始化数据库
+# 初始化数据库（先启动基础设施，再用临时容器执行，不依赖 backend 运行）
 init-db:
-	$(COMPOSE) exec backend python scripts/init_db.py
+	$(COMPOSE) run --rm --entrypoint python backend scripts/init_db.py
 
 # 填充测试数据
 seed-data:
-	$(COMPOSE) exec backend python scripts/seed_data.py
+	$(COMPOSE) run --rm --entrypoint python backend scripts/seed_data.py
 
 # 安装 OpenSearch IK 分词器（需要先手动下载插件包）
 opensearch-ik:
