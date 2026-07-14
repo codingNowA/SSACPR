@@ -3,6 +3,7 @@ FastAPI 应用入口
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.api import analytics
 
 app = FastAPI(
     title="职业规划智能体系统",
@@ -20,6 +21,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ========== 注册路由 ==========
+app.include_router(analytics.router)  # ← 这一行是新加的
 
 
 @app.get("/")
