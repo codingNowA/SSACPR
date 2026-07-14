@@ -232,8 +232,8 @@ const ResumeDiagnosis: React.FC = () => {
                 <div>
                   <Text>岗位匹配</Text>
                   <Progress
-                    percent={scores.job_match}
-                    strokeColor={getScoreColor(scores.job_match)}
+                    percent={scores.job_match || 0}
+                    strokeColor={getScoreColor(scores.job_match || 0)}
                   />
                 </div>
               </Space>
