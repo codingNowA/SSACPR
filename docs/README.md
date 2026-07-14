@@ -13,7 +13,8 @@ docs/
 ├── development/                 # 开发相关文档
 │   ├── SETUP.md                 # 开发环境搭建指南
 │   ├── REQUIREMENTS.md          # 需求文档
-│   └── FEATURE_CHECKLIST.md     # 功能清单
+│   ├── FEATURE_CHECKLIST.md     # 功能清单
+│   └── TROUBLESHOOTING.md       # 常见问题排查指南
 ├── guides/                      # 使用指南
 │   └── JWT认证使用指南.md       # JWT 认证使用教程
 └── reports/                     # 测试报告
