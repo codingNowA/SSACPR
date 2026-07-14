@@ -8,16 +8,16 @@ Write-Host "  SSACPR 智慧学工职业规划推荐智能体 - 部署" -Foregrou
 Write-Host "==========================================" -ForegroundColor Cyan
 
 # ---- 1. 检查 .env ----
-Write-Host "[1/6] 检查 .env 配置文件..." -NoNewline
-if (-not (Test-Path .env)) {
+Write-Host "[1/6] 检查 backend/.env 配置文件..." -NoNewline
+if (-not (Test-Path backend/.env)) {
     if (Test-Path .env.example) {
-        Copy-Item .env.example .env
+        Copy-Item .env.example backend/.env
         Write-Host " 已创建" -ForegroundColor Yellow
-        Write-Host "  ⚠️  请编辑 .env 填入真实配置（LLM_API_KEY、POSTGRES_PASSWORD 等）" -ForegroundColor Yellow
+        Write-Host "  ⚠️  请编辑 backend/.env 填入真实配置（LLM_API_KEY、POSTGRES_PASSWORD 等）" -ForegroundColor Yellow
         Write-Host "  填好后重新运行 .\deploy.ps1" -ForegroundColor Yellow
         exit 1
     } else {
-        Write-Host " ❌ 未找到 .env 文件" -ForegroundColor Red
+        Write-Host " ❌ 未找到 backend/.env 文件" -ForegroundColor Red
         exit 1
     }
 }

@@ -9,20 +9,20 @@ echo "=========================================="
 echo "  SSACPR 智慧学工职业规划推荐智能体 - 部署"
 echo "=========================================="
 
-# ---- 1. 检查 .env ----
-if [ ! -f .env ]; then
+# ---- 1. 检查 backend/.env ----
+if [ ! -f backend/.env ]; then
     if [ -f .env.example ]; then
-        echo "[1/6] 从 .env.example 创建 .env ..."
-        cp .env.example .env
-        echo "  ⚠️  请编辑 .env 填入真实配置（LLM_API_KEY、POSTGRES_PASSWORD 等）"
+        echo "[1/6] 从 .env.example 创建 backend/.env ..."
+        cp .env.example backend/.env
+        echo "  ⚠️  请编辑 backend/.env 填入真实配置（LLM_API_KEY、POSTGRES_PASSWORD 等）"
         echo "  填好后重新运行 bash deploy.sh"
         exit 1
     else
-        echo "  ❌ 未找到 .env 文件"
+        echo "  ❌ 未找到 backend/.env 文件"
         exit 1
     fi
 else
-    echo "[1/6] .env 已存在 ✓"
+    echo "[1/6] backend/.env 已存在 ✓"
 fi
 
 # ---- 2. 构建 & 启动容器 ----

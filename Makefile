@@ -1,6 +1,6 @@
 .PHONY: help install dev up down logs clean test lint format init-db seed-data
 
-# Docker Compose 命令（不指定 -p，使用目录名作为项目名，与 docker-compose up 保持一致）
+# Docker Compose 命令（env_file 统一从 backend/.env 读取）
 COMPOSE = docker-compose
 
 # 默认目标
@@ -23,7 +23,7 @@ help:
 # 一键部署
 deploy:
 	@echo "===== SSACPR 一键部署 ====="
-	@if not exist .env (echo [!] .env 不存在，请先复制 .env.example 并填写配置 && exit 1)
+	@if not exist backend\.env (echo [!] backend/.env 不存在，请先复制 .env.example 到 backend/.env 并填写配置 && exit 1)
 	$(COMPOSE) up -d --build
 	@echo "等待服务就绪..."
 	@timeout /t 15 /nobreak >nul
