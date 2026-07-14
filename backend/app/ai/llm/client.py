@@ -83,7 +83,11 @@ class LLMClient:
         logger.debug("LLM request: model=%s", payload["model"])
 
         try:
-            async with httpx.AsyncClient(timeout=self.settings.timeout) as client:
+            async with httpx.AsyncClient(
+                timeout=self.settings.timeout,
+                verify=self.settings.verify_ssl,  # 从配置读取 SSL 验证选项
+                follow_redirects=False,  # 禁用重定向以降低 SSRF 风险
+            ) as client:
                 response = await client.post(
                     self._normalize_url(self.settings.base_url),
                     json=payload,

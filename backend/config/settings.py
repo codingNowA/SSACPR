@@ -1,7 +1,13 @@
 #AppSettings 则是整个应用的顶层配置,包含应用名称、运行环境等全局元数据
 import os
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
+from dotenv import load_dotenv
+
+# 加载 .env 文件
+env_path = Path(__file__).parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 # 启动时加载 .env 文件到环境变量
 from dotenv import load_dotenv
@@ -18,6 +24,7 @@ class LLMSettings:
 	max_retries: int = int(os.getenv("LLM_MAX_RETRIES", "2"))
 	temperature: float = float(os.getenv("LLM_TEMPERATURE", "0.2"))
 	dry_run: bool = os.getenv("LLM_DRY_RUN", "false").lower() == "true"
+	verify_ssl: bool = os.getenv("LLM_VERIFY_SSL", "true").lower() == "true"  # SSL 验证开关
 
 
 @dataclass(frozen=True)
