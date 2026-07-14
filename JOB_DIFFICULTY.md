@@ -1,12 +1,83 @@
-# 岗位难度基础判断功能 - 完整文档
+# 智慧学工职业规划系统 - 岗位分析模块
 
-> **任务编号**：SCUAJ14-27  
+> **包含功能**：
+> - ✅ 岗位信息提取（SCUAJ14-26）
+> - ✅ 岗位难度判断（SCUAJ14-27）  
+> 
 > **完成时间**：2026-07-14  
 > **状态**：✅ 已完成并可用
 
 ---
 
 ## 📋 功能概述
+
+### 一、岗位信息提取（SCUAJ14-26）
+
+**功能说明**：从非结构化的岗位描述文本中自动提取关键信息
+
+#### 核心能力
+- ✅ **自动提取12个字段**：岗位名称、学历、经验、薪资、地点、技能、职责等
+- ✅ **技能识别**：覆盖50+主流技术栈（Java、Python、React、微服务等）
+- ✅ **置信度评分**：0-1分，评估提取质量
+- ✅ **行业识别**：自动识别互联网、金融、AI等7大行业
+- ✅ **智能分类**：区分必备技能和优先技能
+
+#### 提取字段列表
+| 分类 | 字段 |
+|------|------|
+| **基础信息** | 岗位名称、学历要求、工作经验、薪资范围、工作地点 |
+| **技能要求** | 必备技能列表、优先技能列表 |
+| **详细信息** | 岗位职责、任职要求、福利待遇 |
+| **附加信息** | 所属行业、公司类型、团队规模、工作模式 |
+
+#### 使用示例
+
+**输入**：非结构化岗位文本
+```text
+高级Java开发工程师
+
+岗位职责：
+1. 负责公司核心业务系统的开发和维护
+2. 参与系统架构设计和技术方案制定
+
+任职要求：
+- 本科及以上学历，计算机相关专业
+- 3-5年Java开发经验
+- 精通Spring Boot、微服务架构
+- 熟悉MySQL、Redis等数据库
+
+薪资待遇：20k-35k
+工作地点：北京-朝阳区
+```
+
+**输出**：结构化岗位信息
+```json
+{
+  "success": true,
+  "extracted_info": {
+    "job_title": "高级Java开发工程师",
+    "education_requirement": "本科及以上",
+    "experience_requirement": "3-5年",
+    "salary_range": "20k-35k",
+    "location": "北京-朝阳区",
+    "required_skills": ["Java", "Spring Boot", "MySQL", "Redis", "微服务"],
+    "industry": "互联网"
+  },
+  "confidence_score": 1.0,
+  "extraction_notes": [
+    "成功提取岗位名称: 高级Java开发工程师",
+    "成功提取学历要求: 本科及以上",
+    "成功提取7项必备技能"
+  ],
+  "missing_fields": []
+}
+```
+
+---
+
+### 二、岗位难度判断（SCUAJ14-27）
+
+**功能说明**：评估职位的求职难度，帮助求职者了解岗位门槛
 
 岗位难度基础判断功能用于评估职位的求职难度，帮助求职者了解岗位门槛，制定合理的求职策略。
 
@@ -39,25 +110,33 @@ backend/
 ├── app/
 │   ├── api/
 │   │   ├── __init__.py              # API 路由初始化
-│   │   └── job_difficulty.py        # 岗位难度 API 路由（3个端点）
+│   │   ├── job_extraction.py        # 岗位信息提取 API（1个端点）
+│   │   └── job_difficulty.py        # 岗位难度分析 API（3个端点）
 │   ├── schemas/
-│   │   └── job_difficulty.py        # 数据模型定义（已增强）
+│   │   ├── job_extraction.py        # 信息提取数据模型
+│   │   └── job_difficulty.py        # 难度分析数据模型（已增强）
 │   └── services/
+│       ├── job_extraction_service.py # 岗位信息提取服务
 │       └── job_difficulty_service.py # 岗位难度分析服务（已增强）
 └── tests/
-    └── test_job_difficulty.py        # 单元测试
+    ├── test_job_extraction.py        # 信息提取单元测试
+    └── test_job_difficulty.py        # 难度分析单元测试
 ```
 
 ### 代码统计
 
-| 文件路径 | 行数 | 说明 |
-|---------|------|------|
-| `backend/app/api/job_difficulty.py` | 130 | REST API 接口（3个端点） |
-| `backend/app/schemas/job_difficulty.py` | ~120 | 数据模型定义（已增强） |
-| `backend/app/services/job_difficulty_service.py` | ~620 | 核心分析算法（已增强） |
-| `backend/tests/test_job_difficulty.py` | 168 | 单元测试 |
+| 模块 | 文件路径 | 行数 | 说明 |
+|------|---------|------|------|
+| **信息提取** | `backend/app/api/job_extraction.py` | ~50 | REST API 接口 |
+| | `backend/app/schemas/job_extraction.py` | ~80 | 数据模型定义 |
+| | `backend/app/services/job_extraction_service.py` | ~350 | 核心提取算法 |
+| | `backend/tests/test_job_extraction.py` | ~200 | 单元测试（5个） |
+| **难度分析** | `backend/app/api/job_difficulty.py` | 130 | REST API 接口（3个端点） |
+| | `backend/app/schemas/job_difficulty.py` | ~120 | 数据模型定义（已增强） |
+| | `backend/app/services/job_difficulty_service.py` | ~620 | 核心分析算法（已增强） |
+| | `backend/tests/test_job_difficulty.py` | 168 | 单元测试（10个） |
 
-**总计**：~1040行核心代码
+**总计**：~1720行核心代码
 
 ### 🆕 数据模型增强（2026-07-14）
 
@@ -85,7 +164,55 @@ backend/
 
 ## 🎯 API 接口
 
-### 1. 分析单个岗位难度
+### 岗位信息提取模块
+
+#### POST /api/v1/job-extraction/extract
+
+从岗位描述文本中提取关键信息。
+
+**请求示例**：
+```json
+{
+  "job_text": "高级Java开发工程师\n\n岗位职责：\n负责核心系统开发\n\n任职要求：\n本科及以上，3-5年经验\n精通Spring Boot、微服务\n\n薪资：20k-35k\n地点：北京"
+}
+```
+
+**响应示例**：
+```json
+{
+  "success": true,
+  "extracted_info": {
+    "job_title": "高级Java开发工程师",
+    "education_requirement": "本科及以上",
+    "experience_requirement": "3-5年",
+    "salary_range": "20k-35k",
+    "location": "北京",
+    "required_skills": ["Java", "Spring Boot", "微服务"],
+    "preferred_skills": [],
+    "job_responsibilities": "负责核心系统开发",
+    "job_requirements": "本科及以上，3-5年经验...",
+    "industry": "互联网",
+    "work_mode": "现场办公"
+  },
+  "confidence_score": 1.0,
+  "extraction_notes": [
+    "成功提取岗位名称: 高级Java开发工程师",
+    "成功提取学历要求: 本科及以上",
+    "成功提取经验要求: 3-5年",
+    "成功提取薪资范围: 20k-35k",
+    "成功提取工作地点: 北京",
+    "成功提取3项必备技能",
+    "识别行业: 互联网"
+  ],
+  "missing_fields": []
+}
+```
+
+---
+
+### 岗位难度分析模块
+
+#### 1. 分析单个岗位难度
 
 **接口地址**：`POST /api/v1/job-difficulty/analyze`
 
@@ -356,30 +483,81 @@ curl -X POST "http://localhost:8000/api/v1/job-difficulty/analyze" \
 
 ---
 
-## 🔗 与其他模块对接
+## 🔗 模块集成与对接
 
-模块设计为**独立服务**，可被其他模块灵活调用：
+### 1. 信息提取 + 难度分析 完整流程
 
-### 1. 与简历诊断模块对接
+两个模块可以无缝集成，实现从非结构化文本到难度评估的完整流程：
 
 ```python
-# 简历诊断模块可以调用岗位难度分析
-from app.services.job_difficulty_service import job_difficulty_analyzer
-from app.schemas.job_difficulty import JobDifficultyRequest
+# 第一步：从非结构化文本提取结构化信息
+from app.services.job_extraction_service import job_info_extractor
 
-# 在简历匹配时分析目标岗位难度
-job_info = JobDifficultyRequest(
-    job_title=target_job_title,
-    requirements=job_requirements
+job_text = """
+高级Java开发工程师
+要求本科，3-5年经验
+精通Spring Boot、微服务、MySQL
+薪资20k-35k，北京朝阳区
+"""
+
+extraction_result = job_info_extractor.extract(job_text)
+
+# 第二步：使用提取的信息进行难度分析
+from app.schemas.job_difficulty import JobDifficultyRequest
+from app.services.job_difficulty_service import job_difficulty_analyzer
+
+extracted = extraction_result.extracted_info
+difficulty_request = JobDifficultyRequest(
+    job_title=extracted.job_title,
+    education_requirement=extracted.education_requirement,
+    experience_requirement=extracted.experience_requirement,
+    salary_range=extracted.salary_range,
+    requirements=extracted.job_requirements,
+    required_skills=extracted.required_skills,
+    industry=extracted.industry
 )
-difficulty_result = job_difficulty_analyzer.analyze(job_info)
+
+difficulty_result = job_difficulty_analyzer.analyze(difficulty_request)
+
+# 第三步：使用分析结果
+print(f"岗位：{difficulty_result.job_title}")
+print(f"难度等级：{difficulty_result.difficulty_level}")
+print(f"难度得分：{difficulty_result.difficulty_score}/100")
+print(f"预估准备时间：{difficulty_result.estimated_preparation_time}")
+```
+
+### 2. 与简历诊断模块对接
+
+```python
+# 简历诊断模块可以先提取岗位信息，再分析难度
+from app.services.job_extraction_service import job_info_extractor
+from app.services.job_difficulty_service import job_difficulty_analyzer
+
+# 用户提供的岗位描述文本
+job_text = user_input_job_description
+
+# 提取结构化信息
+extraction_result = job_info_extractor.extract(job_text)
+extracted = extraction_result.extracted_info
+
+# 分析难度
+difficulty_request = JobDifficultyRequest(
+    job_title=extracted.job_title,
+    education_requirement=extracted.education_requirement,
+    experience_requirement=extracted.experience_requirement,
+    salary_range=extracted.salary_range,
+    required_skills=extracted.required_skills
+)
+difficulty_result = job_difficulty_analyzer.analyze(difficulty_request)
 
 # 根据难度给出针对性建议
 if difficulty_result.difficulty_level in ["hard", "very_hard"]:
     advice = "该岗位难度较高，建议重点优化项目经历和技术能力"
+else:
+    advice = "该岗位难度适中，按常规准备即可"
 ```
 
-### 2. 与岗位匹配模块对接
+### 3. 与岗位匹配模块对接
 
 ```python
 # 岗位匹配模块可以将难度作为匹配因素之一
@@ -404,53 +582,76 @@ else:
     preparation_time = "1-2周"
 ```
 
-### 4. 与岗位推荐模块对接
+### 3. 与岗位推荐模块对接
 
 ```python
-# 过滤掉难度不匹配的岗位
-if difficulty_score > user_capability + 20:
-    exclude_from_recommendation()
+# 从招聘网站爬取的岗位数据
+for raw_job_data in scraped_jobs:
+    # 提取结构化信息
+    extraction_result = job_info_extractor.extract(raw_job_data['description'])
+    
+    # 分析难度
+    difficulty_result = job_difficulty_analyzer.analyze(
+        JobDifficultyRequest(**extraction_result.extracted_info.dict())
+    )
+    
+    # 过滤掉难度不匹配的岗位
+    if difficulty_result.difficulty_score > user_capability + 20:
+        continue  # 跳过难度过高的岗位
+    
+    # 添加到推荐列表
+    recommended_jobs.append({
+        'job_info': extraction_result.extracted_info,
+        'difficulty': difficulty_result,
+        'match_score': calculate_match_score(user_profile, extraction_result)
+    })
 ```
 
----
+### 4. 与面试准备模块对接
 
 ## 🧪 验证测试
 
-### 运行单元测试
+### 岗位信息提取测试
 
 ```bash
-# 进入后端容器
-docker exec -it career-backend bash
+# 运行信息提取测试
+cd backend
+python tests/test_job_extraction.py
+```
 
-# 运行单元测试
-python -m pytest tests/test_job_difficulty.py -v
+**测试结果**：
+```
+✅ 测试1: 完整岗位信息提取 - 通过
+✅ 测试2: 前端岗位信息提取 - 通过
+✅ 测试3: AI算法岗位信息提取 - 通过
+✅ 测试4: 应届生岗位信息提取 - 通过
+✅ 测试5: 信息不完整情况 - 通过
 
-# 或运行测试脚本查看示例输出
+5个测试用例全部通过
+```
+
+### 岗位难度分析测试
+
+```bash
+# 运行难度分析测试
+cd backend
 python tests/test_job_difficulty.py
 ```
 
-### 测试结果示例
-
+**测试结果**：
 ```
-测试案例：高级Java开发工程师
-难度等级: hard
-难度得分: 72.5/100
+✅ 测试1-10: 全部通过
+- 基础分析测试
+- 高级岗位分析
+- 应届生岗位分析
+- 学历因素测试
+- 经验因素测试
+- 薪资因素测试
+- 增强字段测试
+- 市场需求分析测试
+- 职业发展建议测试
 
-难度因素:
-  - 学历要求: 5.0/10 (权重: 0.2)
-  - 工作经验: 6.5/10 (权重: 0.25)
-  - 技术要求: 7.5/10 (权重: 0.3)
-  - 职位级别: 7.0/10 (权重: 0.15)
-  - 薪资水平: 8.0/10 (权重: 0.1)
-
-总结: 该岗位整体难度为较高，需要扎实的技术能力和相关项目经验
-
-备考建议:
-  1. 建议系统梳理专业知识体系，查漏补缺
-  2. 准备2-3个深度项目案例，突出技术亮点
-  3. 深入学习岗位要求的高级技术
-  4. 准备常见面试问题
-  5. 了解目标公司的业务和技术栈
+10个测试用例全部通过
 ```
 
 ---
@@ -489,22 +690,63 @@ python tests/test_job_difficulty.py
 
 ## ✅ 功能状态
 
+### 岗位信息提取（SCUAJ14-26）
+- [x] 核心代码实现（~680行）
+- [x] API 接口可用（1个端点）
+- [x] 路由已注册到主应用
+- [x] 服务运行正常
+- [x] 单元测试完成（5个测试用例，全部通过）
+- [x] 支持50+技术关键词识别
+- [x] 支持7大行业分类
+- [x] 置信度评分机制
+
+### 岗位难度分析（SCUAJ14-27）
 - [x] 核心代码实现（~1040行）
 - [x] API 接口可用（3个端点）
 - [x] 路由已注册到主应用
 - [x] 服务运行正常
 - [x] 单元测试完成（10个测试用例，全部通过）
+- [x] 数据模型已增强（16个新增字段）
+- [x] 智能分析方法（6个新增）
 - [x] 文档编写完成
-- [x] 可对接其他模块
-- [x] 数据模型已增强（2026-07-14更新）
 
-**✅ 功能完整实现，可以投入使用！**
+### 模块集成
+- [x] 两个模块可无缝集成使用
+- [x] 可对接简历诊断模块
+- [x] 可对接岗位匹配模块
+- [x] 可对接面试准备模块
+- [x] 可对接岗位推荐模块
+
+**✅ 两个功能模块完整实现，可以投入使用！**
 
 ---
 
 ## 📝 更新日志
 
-### 2026-07-14 - 数据模型增强
+### 2026-07-14 - 岗位信息提取功能（SCUAJ14-26）
+
+#### 新增功能
+- ✅ 完成岗位信息自动提取功能
+- ✅ 支持从非结构化文本中提取12个关键字段
+- ✅ 实现技能识别（覆盖50+技术关键词）
+- ✅ 实现行业分类（7大行业）
+- ✅ 实现置信度评分机制（0-1分）
+- ✅ 区分必备技能和优先技能
+- ✅ 支持多种文本格式和表述方式
+
+#### 代码文件
+- `backend/app/schemas/job_extraction.py` - 数据模型（~80行）
+- `backend/app/services/job_extraction_service.py` - 提取算法（~350行）
+- `backend/app/api/job_extraction.py` - API接口（~50行）
+- `backend/tests/test_job_extraction.py` - 单元测试（~200行）
+
+#### 测试覆盖
+- 5个测试用例全部通过
+- 覆盖完整提取、前端岗位、AI岗位、应届生岗位、信息不完整等场景
+
+---
+
+### 2026-07-14 - 数据模型增强（SCUAJ14-27）
 
 #### 请求模型新增字段（10个）
 - `industry` - 所属行业（如：互联网、金融、教育）
@@ -552,7 +794,9 @@ python tests/test_job_difficulty.py
 
 ---
 
-**任务编号**：SCUAJ14-27  
+**任务编号**：SCUAJ14-26（信息提取）、SCUAJ14-27（难度分析）  
 **开发完成时间**：2026-07-14  
 **任务状态**：✅ 已完成并交付  
 **维护说明**：后续功能更新请直接在本文档中添加内容
+
+**API 文档地址**：http://localhost:8000/docs
