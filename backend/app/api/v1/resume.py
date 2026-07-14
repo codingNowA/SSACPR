@@ -1,6 +1,7 @@
 """
 简历相关 API 路由
 """
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
@@ -34,6 +35,7 @@ from app.core.resume.scorer import resume_scorer, ResumeScorerError
 from app.core.resume.optimizer import resume_optimizer, ResumeOptimizerError
 from app.services.resume_version_service import resume_version_manager, ResumeVersionError
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/resume", tags=["简历管理"])
 
@@ -51,21 +53,54 @@ async def upload_resume(
     - Word (.docx, 不支持 .doc)
     - 图片 (.png, .jpg, .jpeg)
 
+    上传后自动：
+    1. 保存文件
+    2. 提取文本
+    3. LLM 结构化提取
+    4. 写入数据库 resumes.parsed_data
+
     Args:
         file: 简历文件
         user_id: 用户 ID（可选）
 
     Returns:
-        上传结果
+        上传结果（含 resume_id）
     """
     try:
-        # 保存文件
+        # 1. 保存文件
         file_path, file_type = await file_handler.save_resume(file, user_id)
 
+        resume_id = None
+
+        # 2. 自动解析 + 结构化提取 + 写入数据库
+        try:
+            # 解析文件提取文本
+            parse_result = resume_parser.parse(file_path)
+            resume_text = parse_result.get('text', '')
+
+            if resume_text and len(resume_text.strip()) >= 10:
+                # LLM 结构化提取
+                structured_data = await resume_extractor.extract_structured_data(resume_text)
+                structured_dict = structured_data.dict()
+
+                # 写入数据库
+                uid = user_id or 1  # 开发阶段默认用户
+                resume_id = await save_parsed_data_to_db(
+                    user_id=uid,
+                    file_path=file_path,
+                    file_type=file_type,
+                    structured_data=structured_dict,
+                )
+                logger.info(f"简历已自动入库: resume_id={resume_id}")
+        except Exception as e:
+            # 解析/提取失败不影响文件上传本身
+            logger.warning(f"简历自动结构化失败（文件已保存）: {e}")
+
         response_data = ResumeUploadResponse(
+            resume_id=resume_id,
             file_path=file_path,
             file_type=file_type,
-            message="文件上传成功"
+            message="文件上传成功" + (f"，已入库 resume_id={resume_id}" if resume_id else "，结构化提取未完成")
         )
 
         return ApiResponse(
@@ -205,21 +240,6 @@ async def extract_resume_structure(
 
         # 使用 LLM 提取结构化数据
         structured_data = await resume_extractor.extract_structured_data(resume_text)
-
-        # 保存到数据库（供匹配服务使用）
-        try:
-            # TODO: 从认证中获取真实 user_id，这里暂时使用测试值
-            user_id = 1
-            resume_id = await save_parsed_data_to_db(
-                user_id=user_id,
-                file_path=file_path,
-                file_type=file.content_type or "application/octet-stream",
-                structured_data=structured_data.model_dump(),
-            )
-            print(f"✅ 简历数据已保存到数据库，resume_id={resume_id}")
-        except Exception as db_err:
-            # 数据库保存失败不影响接口返回
-            print(f"⚠️ 数据库保存失败（不影响返回）: {db_err}")
 
         response_data = ResumeExtractResponse(
             text=resume_text,
@@ -578,6 +598,19 @@ async def create_resume_version(
             optimization_data=optimization_data,
         )
 
+        # 7. 同步写入数据库 parsed_data（供岗位匹配使用）
+        if structured_data:
+            try:
+                resume_id = await save_parsed_data_to_db(
+                    user_id=user_id,
+                    file_path=file_path,
+                    file_type=file_type,
+                    structured_data=structured_data,
+                )
+                logger.info(f"版本简历已入库: resume_id={resume_id}")
+            except Exception as e:
+                logger.warning(f"版本简历入库失败（不影响版本创建）: {e}")
+
         response_data = ResumeVersionResponse(
             version=version,
             message="版本创建成功"
@@ -797,5 +830,3 @@ async def get_resume_version(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"服务器错误: {str(e)}"
         )
-
-
