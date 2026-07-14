@@ -262,35 +262,23 @@ const ResumeDiagnosis: React.FC = () => {
           }
         >
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            {suggestions.map((item, index) => {
-              const { color, text } = getSeverityTag(item.severity);
-              return (
-                <Card key={index} size="small" type="inner">
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <div>
-                      <Tag color={color}>{text}</Tag>
-                      <Text strong>{item.category}</Text>
-                    </div>
-                    <Alert
-                      message={item.issue}
-                      description={
-                        <div>
-                          <Paragraph>{item.suggestion}</Paragraph>
-                          {item.example && (
-                            <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                              <Text strong>示例：</Text>
-                              {item.example}
-                            </Paragraph>
-                          )}
-                        </div>
-                      }
-                      type="info"
-                      showIcon
-                    />
-                  </Space>
-                </Card>
-              );
-            })}
+            {suggestions.map((item, index) => (
+              <Card key={index} size="small" type="inner">
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <div>
+                    <Tag color={item.type === 'success' ? 'green' : item.type === 'warning' ? 'orange' : 'red'}>
+                      {item.importance}
+                    </Tag>
+                    <Text strong>{item.dimension}</Text>
+                  </div>
+                  <Alert
+                    message={item.content}
+                    type={item.type}
+                    showIcon
+                  />
+                </Space>
+              </Card>
+            ))}
           </Space>
         </Card>
 
