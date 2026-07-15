@@ -199,10 +199,30 @@ make status
 ```
 
 ### 4. 安装 OpenSearch IK 分词器
+
+**下载插件包**（必需）：
 ```bash
-# 等待 OpenSearch 启动后（约 30 秒）
-make opensearch-ik
+# 浏览器下载（推荐）
+# https://release.infinilabs.com/analysis-ik/stable/opensearch-analysis-ik-2.11.1.zip
+
+# 或使用命令行下载到项目根目录
+# Windows PowerShell:
+Invoke-WebRequest -Uri "https://release.infinilabs.com/analysis-ik/stable/opensearch-analysis-ik-2.11.1.zip" -OutFile "opensearch-analysis-ik-2.11.1.zip"
+
+# Linux / macOS:
+wget https://release.infinilabs.com/analysis-ik/stable/opensearch-analysis-ik-2.11.1.zip
 ```
+
+**安装插件**：
+```bash
+# Linux / macOS
+make opensearch-ik
+
+# Windows PowerShell（使用专用脚本）
+.\install-ik.ps1
+```
+
+详细步骤请查看 [SETUP.md](SETUP.md) 的"安装 OpenSearch IK 分词器"章节
 
 ### 5. 访问服务
 - **后端 API 文档**: http://localhost:8000/docs
