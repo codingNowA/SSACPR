@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 全局状态管理
  */
 import { create } from 'zustand';
@@ -6,8 +6,8 @@ import type { ResumeData, DiagnosisResult } from '../types';
 
 interface AppState {
   // 当前用户ID（模拟登录）
-  userId: number;
-  setUserId: (id: number) => void;
+  userId: number | null;
+  setUserId: (id: number | null) => void;
 
   // 当前简历ID
   currentResumeId: number | null;
@@ -30,7 +30,7 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  userId: 1, // 默认用户ID
+  userId: 1, // 开发阶段默认用户，接入登录后改为 null
   setUserId: (id) => set({ userId: id }),
 
   currentResumeId: null,

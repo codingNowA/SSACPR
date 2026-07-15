@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 简历上传页面
  */
 import React, { useState } from 'react';
@@ -64,6 +64,11 @@ const ResumeUpload: React.FC = () => {
     try {
       // 步骤 1: 上传文件
       message.loading({ content: '正在上传简历...', key: 'upload', duration: 0 });
+      if (!userId) {
+        message.error('请先登录');
+        setUploading(false);
+        return;
+      }
       const uploadResult = await uploadResume(file, userId);
       message.success({ content: '上传成功！', key: 'upload' });
       setCurrentStep(1);

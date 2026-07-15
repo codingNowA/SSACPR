@@ -5,7 +5,8 @@ from __future__ import annotations
 
 from typing import List
 
-from fastapi import APIRouter, HTTPException, Query, Body
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from app.core.auth import get_current_user
 
 from app.schemas.common import ApiResponse
 from app.services.job_service import get_db_pool
@@ -14,9 +15,7 @@ router = APIRouter(prefix="/resume", tags=["简历版本快照"])
 
 
 @router.post("/{resume_id}/snapshots", summary="保存简历快照")
-async def create_resume_snapshot(
-    resume_id: int,
-    version_data: dict = Body(..., description="版本数据"),
+async def create_resume_snapshot(resume_id: int, _user: dict = Depends(get_current_user), version_data: dict = Body(..., description="版本数据"),
 ) -> ApiResponse[dict]:
     """
     保存当前简历状态为新版本
@@ -82,9 +81,7 @@ async def create_resume_snapshot(
 
 
 @router.get("/{resume_id}/snapshots", summary="获取快照列表")
-async def get_resume_snapshots(
-    resume_id: int,
-    page: int = Query(default=1, ge=1, description="页码"),
+async def get_resume_snapshots(resume_id: int, _user: dict = Depends(get_current_user), page: int = Query(default=1, ge=1, description="页码"),
     page_size: int = Query(default=10, ge=1, le=50, description="每页数量"),
 ) -> ApiResponse[dict]:
     """查询简历的所有历史版本"""
@@ -136,7 +133,7 @@ async def get_resume_snapshots(
 
 
 @router.get("/snapshots/{version_id}", summary="获取快照详情")
-async def get_snapshot_detail(version_id: int) -> ApiResponse[dict]:
+async def get_snapshot_detail(version_id: int, _user: dict = Depends(get_current_user)) -> ApiResponse[dict]:
     """查询特定快照的详细信息"""
     try:
         import logging
@@ -196,7 +193,7 @@ async def get_snapshot_detail(version_id: int) -> ApiResponse[dict]:
 
 
 @router.delete("/snapshots/{version_id}", summary="删除快照")
-async def delete_snapshot(version_id: int) -> ApiResponse[None]:
+async def delete_snapshot(version_id: int, _user: dict = Depends(get_current_user)) -> ApiResponse[None]:
     """删除指定快照"""
     try:
         pool = await get_db_pool()

@@ -37,7 +37,7 @@ export const parseResume = async (resumeId: number): Promise<ResumeData> => {
  * 诊断简历
  */
 export const diagnoseResume = async (resumeId: number): Promise<DiagnosisResult> => {
-  const response = await apiClient.get(`/api/v1/resume/${resumeId}/scores`);
+  const response = await apiClient.post(`/api/v1/resume/${resumeId}/diagnose`);
   return response;
 };
 

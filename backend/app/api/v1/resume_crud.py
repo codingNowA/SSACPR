@@ -1,18 +1,36 @@
 """
 简历 CRUD 和诊断相关 API（缺失的路由）
 """
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from app.core.auth import get_current_user
 from app.schemas.common import ApiResponse
 from app.services.job_service import get_db_pool
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/resume", tags=["简历管理"])
+def _rebuild_text_from_parsed(parsed_data: dict) -> str:
+    """从 parsed_data 重建文本，供 LLM 评分使用，避免重复解析文件"""
+    parts = []
+    bi = parsed_data.get('basic_info') or parsed_data.get('basicInfo')
+    if bi:
+        parts.append(f"姓名:{bi.get('name','')} 电话:{bi.get('phone','')} 邮箱:{bi.get('email','')} 求职意向:{bi.get('job_intention','')}")
+    for edu in (parsed_data.get('education') or []):
+        parts.append(f"教育:{edu.get('school','')} {edu.get('major','')} {edu.get('degree','')} {edu.get('start_date','')}-{edu.get('end_date','')}")
+    for w in (parsed_data.get('work_experience') or parsed_data.get('workExperience') or []):
+        parts.append(f"工作:{w.get('company','')} {w.get('position','')} {w.get('start_date','')}-{w.get('end_date','至今')}")
+    for p in (parsed_data.get('projects') or []):
+        parts.append(f"项目:{p.get('name','')} {p.get('description','')} {p.get('role','')}")
+    skills = parsed_data.get('skills') or []
+    if skills:
+        parts.append('技能:' + ','.join(s if isinstance(s, str) else s.get('name','') for s in skills))
+    return '\n'.join(parts)
 
 
 @router.get("/{resume_id}")
-async def get_resume(resume_id: int):
+async def get_resume(resume_id: int, _user: dict = Depends(get_current_user)):
     """
     获取简历数据
 
@@ -45,7 +63,7 @@ async def get_resume(resume_id: int):
                 "user_id": row['user_id'],
                 "file_path": row['file_path'],
                 "file_type": row['file_type'],
-                "parsed_data": row['parsed_data'],
+                "parsed_data": json.loads(row['parsed_data']) if isinstance(row['parsed_data'], str) else row['parsed_data'],
                 "status": row['status'],
                 "created_at": row['created_at'].isoformat() if row['created_at'] else None,
                 "updated_at": row['updated_at'].isoformat() if row['updated_at'] else None,
@@ -67,7 +85,7 @@ async def get_resume(resume_id: int):
 
 
 @router.post("/{resume_id}/parse")
-async def parse_resume_by_id(resume_id: int):
+async def parse_resume_by_id(resume_id: int, _user: dict = Depends(get_current_user)):
     """
     解析已上传的简历
 
@@ -94,6 +112,8 @@ async def parse_resume_by_id(resume_id: int):
 
             # 返回已解析的数据
             parsed_data = row['parsed_data'] or {}
+            if isinstance(parsed_data, str):
+                parsed_data = json.loads(parsed_data)
 
             return ApiResponse(
                 code=200,
@@ -111,7 +131,7 @@ async def parse_resume_by_id(resume_id: int):
 
 
 @router.post("/{resume_id}/diagnose")
-async def diagnose_resume_by_id(resume_id: int):
+async def diagnose_resume_by_id(resume_id: int, _user: dict = Depends(get_current_user)):
     """
     诊断已上传的简历
 
@@ -123,7 +143,6 @@ async def diagnose_resume_by_id(resume_id: int):
     """
     try:
         from app.core.resume.scorer import resume_scorer
-        from app.core.resume import resume_parser
 
         # 获取简历数据
         pool = await get_db_pool()
@@ -142,12 +161,13 @@ async def diagnose_resume_by_id(resume_id: int):
             file_path = row['file_path']
             parsed_data = row['parsed_data']
 
-            # 重新解析文件以获取文本
-            parse_result = resume_parser.parse(file_path)
-            resume_text = parse_result.get('text', '')
+            # 从 parsed_data 重建文本，避免重复解析文件
+            _pd_raw = row['parsed_data']
+            if isinstance(_pd_raw, str):
+                _pd_raw = json.loads(_pd_raw)
+            resume_text = _rebuild_text_from_parsed(_pd_raw)
 
             # 将 parsed_data 转换为 Pydantic 模型
-            import json
             from app.schemas.resume_structured import ResumeStructuredData
 
             if isinstance(parsed_data, str):
@@ -182,7 +202,7 @@ async def diagnose_resume_by_id(resume_id: int):
 
 
 @router.get("/{resume_id}/scores")
-async def get_resume_scores(resume_id: int):
+async def get_resume_scores(resume_id: int, _user: dict = Depends(get_current_user)):
     """
     获取简历评分（诊断结果）
 
@@ -196,7 +216,7 @@ async def get_resume_scores(resume_id: int):
 
 
 @router.post("/{resume_id}/optimize")
-async def optimize_resume_by_id(resume_id: int, job_title: str = None):
+async def optimize_resume_by_id(resume_id: int, job_title: str = None, _user: dict = Depends(get_current_user)):
     """
     优化已上传的简历
 
@@ -210,7 +230,6 @@ async def optimize_resume_by_id(resume_id: int, job_title: str = None):
     try:
         from app.core.resume.scorer import resume_scorer
         from app.core.resume.optimizer import resume_optimizer
-        from app.core.resume import resume_parser
 
         # 获取简历数据
         pool = await get_db_pool()
@@ -229,12 +248,13 @@ async def optimize_resume_by_id(resume_id: int, job_title: str = None):
             file_path = row['file_path']
             parsed_data = row['parsed_data']
 
-            # 重新解析文件以获取文本
-            parse_result = resume_parser.parse(file_path)
-            resume_text = parse_result.get('text', '')
+            # 从 parsed_data 重建文本，避免重复解析文件
+            _pd_raw = row['parsed_data']
+            if isinstance(_pd_raw, str):
+                _pd_raw = json.loads(_pd_raw)
+            resume_text = _rebuild_text_from_parsed(_pd_raw)
 
             # 将 parsed_data 转换为 Pydantic 模型
-            import json
             from app.schemas.resume_structured import ResumeStructuredData
 
             if isinstance(parsed_data, str):
