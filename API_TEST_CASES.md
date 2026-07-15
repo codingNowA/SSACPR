@@ -384,3 +384,286 @@
 - [ ] 能够同时分析多个岗位
 - [ ] 不同岗位返回不同结果
 - [ ] 难度递增关系正确
+
+---
+
+## 六、面试题推荐测试用例
+
+### 测试用例 1：Java后端开发工程师
+
+**接口**：POST /api/v1/interview/recommend
+
+```json
+{
+  "job_text": "岗位：Java后端开发工程师\n\n岗位要求：\n1. 本科及以上学历，计算机相关专业\n2. 3年以上Java开发经验\n3. 熟练掌握Java、Spring Boot、MyBatis\n4. 熟悉MySQL、Redis等数据库\n5. 了解微服务架构\n\n薪资：15k-25k",
+  "max_questions": 15
+}
+```
+
+**预期结果**：
+- 推荐15道面试题
+- 包含Java基础知识题（集合框架、JVM、多线程等）
+- 包含Spring Boot框架题
+- 包含数据库题（MySQL、Redis）
+- 包含系统设计题和项目经验题
+- 每道题都有分类、难度、答案要点、技术标签
+
+---
+
+### 测试用例 2：Python开发工程师
+
+**接口**：POST /api/v1/interview/recommend
+
+```json
+{
+  "job_text": "Python开发工程师\n\n要求：\n- 熟悉Python、Django或Flask框架\n- 了解数据库MySQL、MongoDB\n- 有API开发经验\n\n待遇：12k-20k",
+  "max_questions": 12
+}
+```
+
+**预期结果**：
+- 推荐12道面试题
+- 包含Python基础题（装饰器、生成器、GIL等）
+- 包含Django/Flask框架对比题
+- 包含数据库相关题
+- 包含项目经验题
+
+---
+
+### 测试用例 3：前端开发工程师
+
+**接口**：POST /api/v1/interview/recommend
+
+```json
+{
+  "job_text": "前端开发工程师\n\n职责：\n- 负责公司Web前端开发\n- 使用React或Vue框架\n- 与后端API对接\n\n要求：\n- 熟练掌握HTML、CSS、JavaScript\n- 熟悉React或Vue\n- 了解Webpack、Node.js\n\n薪资：10k-18k",
+  "max_questions": 10
+}
+```
+
+**预期结果**：
+- 推荐10道面试题
+- 包含JavaScript基础题（闭包、ES6、事件循环等）
+- 包含React/Vue框架对比题
+- 包含前端性能优化、工程化相关题
+
+---
+
+### 测试用例 4：AI算法工程师
+
+**接口**：POST /api/v1/interview/recommend
+
+```json
+{
+  "job_text": "AI算法工程师\n\n岗位职责：\n- 负责机器学习算法研发\n- 模型训练和优化\n\n任职要求：\n- 硕士及以上学历\n- 熟悉Python、TensorFlow或PyTorch\n- 熟悉深度学习、NLP或计算机视觉\n- 扎实的算法和数据结构基础\n\n薪资：20k-35k",
+  "max_questions": 20
+}
+```
+
+**预期结果**：
+- 推荐20道面试题
+- 包含机器学习基础题（过拟合、损失函数、梯度下降等）
+- 包含深度学习题（Transformer、CNN、RNN等）
+- 包含算法题（排序、链表、二叉树、动态规划等）
+- 包含Python编程题
+
+---
+
+### 测试用例 5：全栈开发工程师
+
+**接口**：POST /api/v1/interview/recommend
+
+```json
+{
+  "job_text": "全栈开发工程师\n\n要求：\n- 前端：Vue或React\n- 后端：Node.js或Python\n- 数据库：MySQL、MongoDB\n- 有完整项目开发经验\n\n薪资：18k-30k",
+  "max_questions": 15
+}
+```
+
+**预期结果**：
+- 推荐15道面试题
+- 同时包含前端和后端相关题目
+- 覆盖JavaScript、数据库、系统设计等多个方面
+
+---
+
+### 测试用例 6：最少题目数量（边界测试）
+
+**接口**：POST /api/v1/interview/recommend
+
+```json
+{
+  "job_text": "Java开发工程师，要求熟悉Java、Spring Boot、MySQL",
+  "max_questions": 5
+}
+```
+
+**预期结果**：
+- 严格返回5道面试题
+- 优先推荐最核心的Java和数据库题目
+
+---
+
+### 测试用例 7：最多题目数量（边界测试）
+
+**接口**：POST /api/v1/interview/recommend
+
+```json
+{
+  "job_text": "高级Java开发工程师\n要求：Java、Spring Boot、微服务、MySQL、Redis、Kafka、Docker、Kubernetes",
+  "max_questions": 50
+}
+```
+
+**预期结果**：
+- 返回题目数量 ≤ 50
+- 覆盖所有提到的技术栈
+- 包含基础、进阶、架构设计等多个层次
+
+---
+
+### 测试用例 8：文本过短（异常测试）
+
+**接口**：POST /api/v1/interview/recommend
+
+```json
+{
+  "job_text": "Java",
+  "max_questions": 10
+}
+```
+
+**预期结果**：
+- HTTP 400 错误
+- 错误信息："岗位描述文本过短，请提供更详细的信息"
+
+---
+
+### 测试用例 9：无效题目数量（异常测试）
+
+**接口**：POST /api/v1/interview/recommend
+
+```json
+{
+  "job_text": "Python开发工程师，熟悉Django、MySQL",
+  "max_questions": 3
+}
+```
+
+**预期结果**：
+- HTTP 422 错误
+- 验证失败：max_questions 必须 >= 5
+
+---
+
+### 测试用例 10：无技术关键词的岗位
+
+**接口**：POST /api/v1/interview/recommend
+
+```json
+{
+  "job_text": "软件开发工程师\n\n要求：\n- 本科以上学历\n- 有开发经验\n- 良好的沟通能力\n\n薪资：10k-15k",
+  "max_questions": 10
+}
+```
+
+**预期结果**：
+- 返回通用的面试题
+- 包含数据库基础题、系统设计题、项目经验题
+- 即使没有明确技术栈，也能提供有价值的题目
+
+---
+
+## 七、面试题推荐功能说明
+
+### 响应结构示例
+
+```json
+{
+  "success": true,
+  "recommendation": {
+    "job_title": "Java后端开发工程师",
+    "total_questions": 15,
+    "questions_by_category": {
+      "基础知识": 6,
+      "框架原理": 2,
+      "数据库": 2,
+      "算法与数据结构": 2,
+      "系统设计": 1,
+      "项目经验": 2
+    },
+    "questions": [
+      {
+        "question": "请介绍一下Java中的集合框架，以及常用集合类的特点",
+        "category": "基础知识",
+        "difficulty": "中等",
+        "key_points": [
+          "Collection和Map两大接口体系",
+          "List（ArrayList、LinkedList）：有序可重复",
+          "Set（HashSet、TreeSet）：无序不重复",
+          "Queue（LinkedList、PriorityQueue）：队列操作",
+          "Map（HashMap、TreeMap、LinkedHashMap）：键值对映射"
+        ],
+        "tags": ["Java", "集合框架", "数据结构"]
+      }
+    ]
+  },
+  "message": "成功推荐15道面试题"
+}
+```
+
+### 字段说明
+- **success**: 推荐是否成功
+- **recommendation**: 推荐结果对象
+  - **job_title**: 识别出的岗位名称
+  - **total_questions**: 推荐的题目总数
+  - **questions_by_category**: 按分类统计的题目数量
+  - **questions**: 面试题列表
+    - **question**: 面试题内容
+    - **category**: 分类（基础知识、框架原理、算法与数据结构、系统设计、项目经验等）
+    - **difficulty**: 难度（简单、中等、困难）
+    - **key_points**: 参考答案要点（每条一个核心点）
+    - **tags**: 技术标签
+- **message**: 响应消息
+
+### 题目分类说明
+- **基础知识**：语言特性、核心概念
+- **框架原理**：框架使用、底层实现
+- **框架对比**：不同框架的对比分析
+- **算法与数据结构**：编程能力、算法思维
+- **数据库**：SQL、索引、事务、缓存
+- **系统设计**：架构设计、高并发、分布式
+- **深度学习**：机器学习、神经网络相关
+- **项目经验**：问题解决、团队协作
+
+### 难度分级
+- **简单**：基础概念、定义类题目
+- **中等**：需要理解原理、有一定深度
+- **困难**：需要系统思考、综合运用
+
+### 使用建议
+
+**题目数量选择**：
+- **应届生/初级**：10-15道题，覆盖基础知识
+- **中级**：15-20道题，增加框架和项目经验题
+- **高级/架构师**：20-30道题，增加系统设计和架构题
+
+**如何使用答案要点**：
+- 每道题的`key_points`是答案的核心要点
+- 面试时应该围绕这些要点展开，加入自己的理解和实践经验
+- 建议每个要点准备1-2分钟的详细说明
+
+---
+
+## 测试检查清单（更新）
+
+### 面试题推荐
+- [ ] 能够根据岗位推荐相关面试题
+- [ ] 题目数量控制准确（5-50范围）
+- [ ] 题目与岗位技能栈匹配
+- [ ] 每道题都有完整的结构（题目、分类、难度、要点、标签）
+- [ ] 答案要点清晰具体
+- [ ] 题目分类统计正确
+- [ ] 难度分级合理
+- [ ] 支持多种岗位类型（前端、后端、算法、全栈等）
+- [ ] 异常情况处理正确（文本过短、数量越界等）
