@@ -1,10 +1,10 @@
 """
 用户认证接口
 """
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
-from app.core.auth import create_access_token
+from app.core.auth import create_access_token, get_current_user
 
 router = APIRouter(prefix="/auth", tags=["认证"])
 
@@ -74,7 +74,7 @@ async def login(request: LoginRequest):
 
 
 @router.get("/test", summary="测试认证（需要登录）")
-async def test_auth(current_user: dict = None):
+async def test_auth(current_user: dict = Depends(get_current_user)):
     """
     测试接口 - 需要登录后才能访问
 

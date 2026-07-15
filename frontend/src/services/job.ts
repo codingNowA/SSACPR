@@ -14,24 +14,21 @@ export const getJobList = async (params: {
   industry?: string;
   location?: string;
 }): Promise<{ total: number; items: Job[] }> => {
-  const response = await apiClient.get('/api/v1/job/list', { params });
-  return response;
+  return await apiClient.get('/api/v1/job/list', { params });
 };
 
 /**
  * 获取岗位详情
  */
 export const getJobDetail = async (jobId: number): Promise<Job> => {
-  const response = await apiClient.get(`/api/v1/job/${jobId}`);
-  return response;
+  return await apiClient.get(`/api/v1/job/${jobId}`);
 };
 
 /**
  * 计算岗位匹配
  */
 export const calculateMatch = async (request: JobMatchRequest): Promise<JobMatchResponse> => {
-  const response = await apiClient.post('/api/v1/match/calculate', request);
-  return response;
+  return await apiClient.post('/api/v1/match/calculate', request);
 };
 
 /**

@@ -2,7 +2,7 @@
  * 岗位匹配页面
  */
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import {
   Card,
   Row,
@@ -13,7 +13,6 @@ import {
   Button,
   Divider,
   Progress,
-  Collapse,
   Form,
   Select,
   InputNumber,
@@ -34,17 +33,15 @@ import {
 import { calculateMatch } from '../../services/job';
 import { getResumeData } from '../../services/resume';
 import { useAppStore } from '../../store';
-import { getScoreColor, getScoreLevel } from '../../utils';
+import { getScoreColor } from '../../utils';
 import type { JobMatchResponse, JobMatchResult, MatchPreferences } from '../../types';
 
-const { Title, Text, Paragraph } = Typography;
-const { Panel } = Collapse;
+const { Title, Text } = Typography;
 const { Option } = Select;
 
 const JobMatch: React.FC = () => {
   const { resumeId } = useParams<{ resumeId: string }>();
-  const navigate = useNavigate();
-  const { resumeData, setResumeData } = useAppStore();
+  const { setResumeData } = useAppStore();
 
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);

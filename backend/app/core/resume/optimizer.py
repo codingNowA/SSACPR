@@ -468,9 +468,18 @@ class ResumeOptimizer:
             # 解析LLM返回
             llm_result = json.loads(result)
 
+            # LLM 可能返回合法 JSON 但不是对象（如列表/字符串），此时回退到基础版本
+            if not isinstance(llm_result, dict):
+                return self._generate_basic_job_targeted(data, score, job_title)
+
             # 构建OptimizedSection对象
             optimized_sections = []
-            for section_data in llm_result.get("optimized_sections", []):
+            _sections = llm_result.get("optimized_sections") or []
+            if not isinstance(_sections, list):
+                _sections = []
+            for section_data in _sections:
+                if not isinstance(section_data, dict):
+                    continue
                 optimized_sections.append(OptimizedSection(
                     section=section_data.get("section", ""),
                     original=section_data.get("original", ""),

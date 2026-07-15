@@ -208,12 +208,14 @@ class ResumeScorer:
         if len(resume_text) > 1000:
             language_quality += 10
 
-        # 2. 格式一致性评估
+        # 2. 格式一致性评估（无日期时不应给予"格式统一"加分）
         date_formats = self._extract_date_formats(data)
-        if len(set(date_formats)) <= 2:  # 日期格式统一
-            format_consistency += 15
-        if len(set(date_formats)) == 1:
-            format_consistency += 15
+        if date_formats:
+            unique_formats = len(set(date_formats))
+            if unique_formats <= 2:  # 日期格式基本统一
+                format_consistency += 15
+            if unique_formats == 1:  # 日期格式完全统一
+                format_consistency += 15
 
         # 3. 细节丰富度评估
         total_descriptions = 0

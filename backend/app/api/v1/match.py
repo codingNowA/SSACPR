@@ -96,7 +96,7 @@ async def explain_match(
             prompt=build_explain_user_prompt(
                 job_title=row["job_title"] or "",
                 company=row["company"],
-                match_score=float(row["match_score"]),
+                match_score=float(row["match_score"]) if row["match_score"] is not None else 0.0,
                 matched_skills=matched_skills or [],
                 missing_skills=missing_skills or [],
             ),

@@ -12,7 +12,6 @@ import {
   Typography,
   Space,
   Button,
-  Divider,
   Alert,
   Spin,
   Collapse,
@@ -33,8 +32,7 @@ import {
 } from '@ant-design/icons';
 import { getResumeData, diagnoseResume, optimizeResume, createResumeVersion } from '../../services/resume';
 import { useAppStore } from '../../store';
-import { getScoreColor, getScoreLevel, getSeverityTag, formatDate } from '../../utils';
-import type { DiagnosisResult, ResumeData } from '../../types';
+import { getScoreColor, getScoreLevel, formatDate } from '../../utils';
 
 const { Title, Text, Paragraph } = Typography;
 const { Panel } = Collapse;
@@ -50,7 +48,8 @@ const ResumeDiagnosis: React.FC = () => {
   const [versionName, setVersionName] = useState('');
 
   useEffect(() => {
-    if (resumeId && !diagnosisResult) {
+    // 仅当无结果或结果属于其他简历时才重新加载，避免切换 resumeId 后展示上一份简历的诊断（脏数据）
+    if (resumeId && (!diagnosisResult || diagnosisResult.resume_id !== parseInt(resumeId))) {
       loadDiagnosisResult();
     }
   }, [resumeId]);
@@ -107,6 +106,10 @@ const ResumeDiagnosis: React.FC = () => {
       message.warning('请先进行简历诊断或优化');
       return;
     }
+
+    console.log('保存版本 - diagnosisResult:', diagnosisResult);
+    console.log('保存版本 - scores:', diagnosisResult.scores);
+    console.log('保存版本 - optimization:', diagnosisResult.optimization);
 
     try {
       await createResumeVersion(
@@ -296,7 +299,7 @@ const ResumeDiagnosis: React.FC = () => {
           }
         >
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            {suggestions.map((item, index) => (
+            {suggestions.map((item: any, index: number) => (
               <Card key={index} size="small" type="inner">
                 <Space direction="vertical" style={{ width: '100%' }}>
                   <div>

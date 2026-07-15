@@ -33,7 +33,6 @@ import {
 } from '@ant-design/icons';
 import { getResumeVersions, getVersionDetail, deleteVersion } from '../../services/resume';
 import { formatDate, getScoreColor, getScoreLevel } from '../../utils';
-import type { ResumeVersion } from '../../types';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Title, Text, Paragraph } = Typography;
@@ -195,7 +194,12 @@ const ResumeSummary: React.FC<{ data: any }> = ({ data }) => {
 
 /** 渲染优化建议 - 兼容后端 general_suggestions/priority_actions/overall_summary 格式 */
 const OptimizationSection: React.FC<{ optimization: any }> = ({ optimization }) => {
-  if (!optimization) return <Text type="secondary">暂无优化建议</Text>;
+  console.log('OptimizationSection 接收到的数据:', optimization);
+
+  if (!optimization) {
+    console.log('优化建议为空');
+    return <Text type="secondary">暂无优化建议</Text>;
+  }
 
   // 兼容多种格式
   const generalSuggestions = optimization?.general_suggestions || [];
@@ -204,7 +208,16 @@ const OptimizationSection: React.FC<{ optimization: any }> = ({ optimization }) 
   const suggestions = optimization?.suggestions || [];
   const hasBackendFormat = generalSuggestions.length > 0 || priorityActions.length > 0 || overallSummary;
 
+  console.log('解析结果:', {
+    generalSuggestions: generalSuggestions.length,
+    priorityActions: priorityActions.length,
+    overallSummary: !!overallSummary,
+    suggestions: suggestions.length,
+    hasBackendFormat
+  });
+
   if (!hasBackendFormat && suggestions.length === 0 && !Array.isArray(optimization)) {
+    console.log('没有找到任何格式的优化建议');
     return <Text type="secondary">暂无优化建议</Text>;
   }
 
@@ -347,6 +360,8 @@ const ResumeVersions: React.FC = () => {
       setDetailLoading(true);
       const detail = await getVersionDetail(versionId);
       const data = detail?.data || detail;
+      console.log('版本详情数据:', data);
+      console.log('优化建议数据:', data?.optimization);
       setSelectedVersion(data);
     } catch (error: any) {
       setDetailModalVisible(false);

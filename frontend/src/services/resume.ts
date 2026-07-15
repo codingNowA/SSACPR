@@ -5,7 +5,6 @@ import apiClient from './api';
 import type {
   ResumeData,
   DiagnosisResult,
-  ResumeVersion,
   UploadResponse,
 } from '../types';
 
@@ -17,28 +16,25 @@ export const uploadResume = async (file: File, userId: number): Promise<UploadRe
   formData.append('file', file);
   formData.append('user_id', userId.toString());
 
-  const response = await apiClient.post('/api/v1/resume/upload', formData, {
+  return await apiClient.post('/api/v1/resume/upload', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   });
-  return response;
 };
 
 /**
  * 解析简历
  */
 export const parseResume = async (resumeId: number): Promise<ResumeData> => {
-  const response = await apiClient.get(`/api/v1/resume/${resumeId}`);
-  return response;
+  return await apiClient.get(`/api/v1/resume/${resumeId}`);
 };
 
 /**
  * 诊断简历
  */
 export const diagnoseResume = async (resumeId: number): Promise<DiagnosisResult> => {
-  const response = await apiClient.post(`/api/v1/resume/${resumeId}/diagnose`);
-  return response;
+  return await apiClient.post(`/api/v1/resume/${resumeId}/diagnose`);
 };
 
 /**
@@ -48,18 +44,16 @@ export const optimizeResume = async (
   resumeId: number,
   targetPosition?: string
 ): Promise<DiagnosisResult> => {
-  const response = await apiClient.post(`/api/v1/resume/${resumeId}/optimize`, {
+  return await apiClient.post(`/api/v1/resume/${resumeId}/optimize`, {
     job_title: targetPosition,
   });
-  return response;
 };
 
 /**
  * 获取简历数据
  */
 export const getResumeData = async (resumeId: number): Promise<ResumeData> => {
-  const response = await apiClient.get(`/api/v1/resume/${resumeId}`);
-  return response;
+  return await apiClient.get(`/api/v1/resume/${resumeId}`);
 };
 
 /**

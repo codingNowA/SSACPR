@@ -113,8 +113,8 @@ async def get_resume_snapshots(resume_id: int, _user: dict = Depends(get_current
                 {
                     "id": row["id"],
                     "version_name": row["version_name"],
-                    "created_at": row["created_at"].isoformat(),
-                    "updated_at": row["updated_at"].isoformat(),
+                    "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+                    "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None,
                 }
                 for row in rows
             ]
@@ -181,8 +181,8 @@ async def get_snapshot_detail(version_id: int, _user: dict = Depends(get_current
                     "parsed_data": parsed_data,
                     "scores": scores,
                     "optimization": optimization,
-                    "created_at": version["created_at"].isoformat(),
-                    "updated_at": version["updated_at"].isoformat(),
+                    "created_at": version["created_at"].isoformat() if version["created_at"] else None,
+                    "updated_at": version["updated_at"].isoformat() if version["updated_at"] else None,
                 }
             )
 

@@ -8,6 +8,10 @@ import ResumeUpload from '../pages/Resume/Upload';
 import ResumeDiagnosis from '../pages/Resume/Diagnosis';
 import ResumeVersions from '../pages/Resume/Versions';
 import JobMatch from '../pages/Job/Match';
+import Analytics from '../pages/Analytics';
+import JobAdmin from '../pages/Admin/JobAdmin';
+import QuestionAdmin from '../pages/Admin/QuestionAdmin';
+import LogQuery from '../pages/Admin/LogQuery';
 
 export const router = createBrowserRouter([
   {
@@ -36,6 +40,27 @@ export const router = createBrowserRouter([
           {
             path: ':resumeId/match',
             element: <JobMatch />,
+          },
+        ],
+      },
+      {
+        path: 'analytics',
+        element: <Analytics />,
+      },
+      {
+        path: 'admin',
+        children: [
+          {
+            path: 'jobs',
+            element: <JobAdmin />,
+          },
+          {
+            path: 'questions',
+            element: <QuestionAdmin />,
+          },
+          {
+            path: 'logs',
+            element: <LogQuery />,
           },
         ],
       },

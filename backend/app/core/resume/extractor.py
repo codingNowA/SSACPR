@@ -157,31 +157,31 @@ class ResumeExtractor:
             结构化数据模型
         """
         try:
-            # 解析基本信息
-            basic_info_data = data.get('basic_info', {})
+            # 解析基本信息（字段可能为 null，使用 or {} 兜底）
+            basic_info_data = data.get('basic_info') or {}
             basic_info = BasicInfo(**basic_info_data) if basic_info_data else None
 
-            # 解析教育经历
+            # 解析教育经历（LLM 可能对空字段返回 null，使用 or [] 兜底）
             education_list = []
-            for edu in data.get('education', []):
+            for edu in (data.get('education') or []):
                 if edu:
                     education_list.append(Education(**edu))
 
             # 解析工作经历
             work_list = []
-            for work in data.get('work_experience', []):
+            for work in (data.get('work_experience') or []):
                 if work:
                     work_list.append(WorkExperience(**work))
 
             # 解析项目经验
             project_list = []
-            for project in data.get('project_experience', []):
+            for project in (data.get('project_experience') or []):
                 if project:
                     project_list.append(ProjectExperience(**project))
 
             # 解析技能标签
             skill_list = []
-            for skill in data.get('skills', []):
+            for skill in (data.get('skills') or []):
                 if skill and skill.get('name'):
                     skill_list.append(SkillTag(**skill))
 

@@ -3,20 +3,23 @@
  */
 import React from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Typography, Space } from 'antd';
+import { Layout, Menu, Space } from 'antd';
 import {
   HomeOutlined,
   FileTextOutlined,
-  ThunderboltOutlined,
+  BarChartOutlined,
+  SettingOutlined,
   UserOutlined,
+  FileSearchOutlined,
 } from '@ant-design/icons';
+import { useAppStore } from '../../store';
 
 const { Header, Content, Footer } = Layout;
-const { Title } = Typography;
 
 const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { currentResumeId } = useAppStore();
 
   const menuItems = [
     {
@@ -28,6 +31,36 @@ const MainLayout: React.FC = () => {
       key: '/resume/upload',
       icon: <FileTextOutlined />,
       label: '简历诊断',
+    },
+    // 只有当前有简历时才显示诊断报告菜单
+    ...(currentResumeId ? [{
+      key: `/resume/${currentResumeId}/diagnosis`,
+      icon: <FileSearchOutlined />,
+      label: '诊断报告',
+    }] : []),
+    {
+      key: '/analytics',
+      icon: <BarChartOutlined />,
+      label: '数据分析',
+    },
+    {
+      key: 'admin',
+      icon: <SettingOutlined />,
+      label: '管理',
+      children: [
+        {
+          key: '/admin/jobs',
+          label: '岗位管理',
+        },
+        {
+          key: '/admin/questions',
+          label: '题库管理',
+        },
+        {
+          key: '/admin/logs',
+          label: '日志查询',
+        },
+      ],
     },
     {
       key: '/about',

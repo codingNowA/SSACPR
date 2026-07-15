@@ -139,7 +139,7 @@ class JobService:
                     CAST($11 AS jsonb))
                 RETURNING id, title, company, industry, location, salary_range,
                     experience_required, education_required, description, requirements,
-                    job_profile, status, source, created_at
+                    job_profile, status, source, created_at, updated_at
                 """,
                 data.title, data.company, data.industry, data.location,
                 data.salary_range, data.experience_required, data.education_required,

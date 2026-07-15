@@ -212,7 +212,7 @@ async def get_resume_scores(resume_id: int, _user: dict = Depends(get_current_us
     Returns:
         评分结果
     """
-    return await diagnose_resume_by_id(resume_id)
+    return await diagnose_resume_by_id(resume_id, _user=_user)
 
 
 @router.post("/{resume_id}/optimize")

@@ -77,7 +77,7 @@ class AnalyticsService:
             FROM jobs
             WHERE status = 'active'
                 AND job_profile->'skills' ? :skill
-                AND created_at >= NOW() - INTERVAL ':months months'
+                AND created_at >= NOW() - (:months || ' months')::interval
             GROUP BY month
             ORDER BY month
         """)
@@ -268,7 +268,7 @@ class AnalyticsService:
                 COUNT(*) as count
             FROM jobs
             WHERE status = 'active'
-                AND created_at >= NOW() - INTERVAL ':months months'
+                AND created_at >= NOW() - (:months || ' months')::interval
             GROUP BY month
             ORDER BY month
         """)

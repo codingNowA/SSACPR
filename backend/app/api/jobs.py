@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.services.job_service import JobService
+from app.services.job_admin_service import JobAdminService
 from app.services.log_service import LogService
 from app.models.job import (
     JobCreate,
@@ -25,7 +25,7 @@ def create_job(
     db: Session = Depends(get_db)
 ):
     """1. 创建岗位"""
-    service = JobService(db)
+    service = JobAdminService(db)
     result = service.create_job(data)
 
     # 写日志
@@ -54,7 +54,7 @@ def get_jobs(
     db: Session = Depends(get_db)
 ):
     """2. 获取岗位列表（分页 + 筛选）"""
-    service = JobService(db)
+    service = JobAdminService(db)
     return service.get_jobs(page, page_size, title, company, industry, location, status, keyword)
 
 
@@ -64,7 +64,7 @@ def get_job(
     db: Session = Depends(get_db)
 ):
     """3. 获取单个岗位详情"""
-    service = JobService(db)
+    service = JobAdminService(db)
     result = service.get_job_by_id(job_id)
     if not result:
         raise HTTPException(status_code=404, detail="岗位不存在")
@@ -79,7 +79,7 @@ def update_job(
     db: Session = Depends(get_db)
 ):
     """4. 更新岗位"""
-    service = JobService(db)
+    service = JobAdminService(db)
     result = service.update_job(job_id, data)
     if not result:
         raise HTTPException(status_code=404, detail="岗位不存在")
@@ -105,7 +105,7 @@ def delete_job(
 ):
     """5. 删除岗位"""
     # 先获取要删除的岗位信息（用于日志）
-    job_service = JobService(db)
+    job_service = JobAdminService(db)
     job = job_service.get_job_by_id(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="岗位不存在")

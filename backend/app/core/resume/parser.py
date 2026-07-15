@@ -4,7 +4,7 @@
 """
 import re
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import docx
 from PyPDF2 import PdfReader
@@ -24,7 +24,7 @@ class ResumeParser:
     def __init__(self):
         self.supported_formats = ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg']
 
-    def parse(self, file_path: str, file_type: Optional[str] = None) -> Dict[str, any]:
+    def parse(self, file_path: str, file_type: Optional[str] = None) -> Dict[str, Any]:
         """
         解析简历文件
 
@@ -57,8 +57,7 @@ class ResumeParser:
         # 根据文件类型选择解析方法
         try:
             if file_type == 'pdf':
-                text = self._parse_pdf(file_path)
-                page_count = self._get_pdf_page_count(file_path)
+                text, page_count = self._parse_pdf(file_path)
             elif file_type in ['doc', 'docx']:
                 text = self._parse_word(file_path)
                 page_count = None
@@ -88,7 +87,7 @@ class ResumeParser:
                 raise
             raise ResumeParserError(f"解析失败: {str(e)}")
 
-    def _parse_pdf(self, file_path: str) -> str:
+    def _parse_pdf(self, file_path: str) -> Tuple[str, int]:
         """
         解析 PDF 文件
 
@@ -96,10 +95,11 @@ class ResumeParser:
             file_path: PDF 文件路径
 
         Returns:
-            提取的文本内容
+            (提取的文本内容, 页数) —— 只打开并解析一次 PDF
         """
         try:
             reader = PdfReader(file_path)
+            page_count = len(reader.pages)
             text_parts = []
 
             for page in reader.pages:
@@ -119,7 +119,7 @@ class ResumeParser:
                     except OCRError:
                         pass
 
-            return text
+            return text, page_count
 
         except Exception as e:
             raise ResumeParserError(f"PDF 解析失败: {str(e)}")
@@ -211,15 +211,6 @@ class ResumeParser:
         text = text.strip()
 
         return text
-
-    def _get_pdf_page_count(self, file_path: str) -> int:
-        """获取 PDF 页数"""
-        try:
-            reader = PdfReader(file_path)
-            return len(reader.pages)
-        except Exception:
-            return 0
-
 
 # 全局简历解析器实例
 resume_parser = ResumeParser()
