@@ -199,12 +199,17 @@ class AnalyticsService:
         )
 
     # ==================== 5. 技能排行 ====================
-    def get_skill_rank(self, limit: int = 20, industry: Optional[str] = None) -> SkillRankResponse:
+    def get_skill_rank(
+        self,
+        limit: int = 20,
+        industry: Optional[str] = None
+    ) -> SkillRankResponse:
         """
         获取技能排行榜
         """
         filter_clause = "AND industry = :industry" if industry else ""
 
+        # 主查询：获取技能出现次数
         query = text(f"""
             SELECT 
                 jsonb_array_elements_text(job_profile->'skills') as skill,
@@ -224,15 +229,23 @@ class AnalyticsService:
         result = self.db.execute(query, params)
         rows = result.fetchall()
 
-        total_query = text("SELECT COUNT(DISTINCT jsonb_array_elements_text(job_profile->'skills')) FROM jobs WHERE status = 'active'")
-        total_result = self.db.execute(total_query)
+        # 修正：使用子查询统计不重复技能总数
+        total_query = text(f"""
+            SELECT COUNT(DISTINCT skill) FROM (
+                SELECT jsonb_array_elements_text(job_profile->'skills') AS skill
+                FROM jobs
+                WHERE status = 'active'
+                {filter_clause}
+            ) sub
+        """)
+        total_result = self.db.execute(total_query, params)  # 注意：必须传入相同的params（包含industry）
         total = total_result.scalar() or 0
 
         skills = [
             SkillRankItem(
                 skill=row[0],
                 count=row[1],
-                percentage=round((row[1] / 100) * 100, 2) if total > 0 else 0,
+                percentage=round((row[1] / total) * 100, 2) if total > 0 else 0,
                 trend=None
             )
             for row in rows
@@ -243,7 +256,7 @@ class AnalyticsService:
             total=total,
             updated_at=datetime.now()
         )
-
+    
     # ==================== 6. 趋势变化 ====================
     def get_trend_change(self, months: int = 6, metric: str = "demand", dimension: str = "overall") -> TrendChangeResponse:
         """
