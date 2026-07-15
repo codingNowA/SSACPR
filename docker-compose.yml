@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     ports:
-      - "5432:5432"
+      - "54321:5432"              # 原 5432 改为 54321
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init.sql
@@ -26,7 +26,7 @@ services:
     container_name: career-redis
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
     ports:
-      - "6379:6379"
+      - "63791:6379"              # 原 6379 改为 63791
     volumes:
       - redis_data:/data
     networks:
@@ -61,8 +61,8 @@ services:
       - opensearch_data:/usr/share/opensearch/data
       - ./docker/opensearch/plugins:/usr/share/opensearch/plugins
     ports:
-      - "9200:9200"
-      - "9600:9600"
+      - "9201:9200"              # 原 9200 改为 9201
+      - "9601:9600"              # 原 9600 改为 9601
     networks:
       - career-network
     healthcheck:
@@ -80,7 +80,7 @@ services:
       - OPENSEARCH_HOSTS=http://opensearch:9200
       - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
     ports:
-      - "5601:5601"
+      - "5602:5601"              # 原 5601 改为 5602
     depends_on:
       opensearch:
         condition: service_healthy
