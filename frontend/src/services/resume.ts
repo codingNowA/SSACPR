@@ -29,7 +29,7 @@ export const uploadResume = async (file: File, userId: number): Promise<UploadRe
  * 解析简历
  */
 export const parseResume = async (resumeId: number): Promise<ResumeData> => {
-  const response = await apiClient.post(`/api/v1/resume/${resumeId}/parse`);
+  const response = await apiClient.get(`/api/v1/resume/${resumeId}`);
   return response;
 };
 
@@ -37,7 +37,7 @@ export const parseResume = async (resumeId: number): Promise<ResumeData> => {
  * 诊断简历
  */
 export const diagnoseResume = async (resumeId: number): Promise<DiagnosisResult> => {
-  const response = await apiClient.post(`/api/v1/resume/${resumeId}/diagnose`);
+  const response = await apiClient.get(`/api/v1/resume/${resumeId}/scores`);
   return response;
 };
 
@@ -49,7 +49,7 @@ export const optimizeResume = async (
   targetPosition?: string
 ): Promise<DiagnosisResult> => {
   const response = await apiClient.post(`/api/v1/resume/${resumeId}/optimize`, {
-    target_position: targetPosition,
+    job_title: targetPosition,
   });
   return response;
 };
@@ -63,33 +63,51 @@ export const getResumeData = async (resumeId: number): Promise<ResumeData> => {
 };
 
 /**
- * 创建简历版本
+ * 保存简历版本（保存当前简历的快照）
  */
 export const createResumeVersion = async (
   resumeId: number,
-  versionName: string
-): Promise<ResumeVersion> => {
-  const response = await apiClient.post(`/api/v1/resume/${resumeId}/version`, {
-    version_name: versionName,
-  });
+  versionName: string,
+  scores?: any,
+  optimization?: any
+): Promise<any> => {
+  const response = await apiClient.post(
+    `/api/v1/resume/${resumeId}/snapshots`,
+    {
+      version_name: versionName,
+      scores: scores,
+      optimization: optimization,
+    }
+  );
   return response;
 };
 
 /**
  * 获取简历版本列表
  */
-export const getResumeVersions = async (resumeId: number): Promise<ResumeVersion[]> => {
-  const response = await apiClient.get(`/api/v1/resume/${resumeId}/versions`);
+export const getResumeVersions = async (
+  resumeId: number,
+  page: number = 1,
+  pageSize: number = 10
+): Promise<any> => {
+  const response = await apiClient.get(
+    `/api/v1/resume/${resumeId}/snapshots?page=${page}&page_size=${pageSize}`
+  );
   return response;
 };
 
 /**
- * 恢复简历版本
+ * 获取版本详情
  */
-export const restoreResumeVersion = async (
-  resumeId: number,
-  versionId: string
-): Promise<ResumeData> => {
-  const response = await apiClient.post(`/api/v1/resume/${resumeId}/version/${versionId}/restore`);
+export const getVersionDetail = async (versionId: number): Promise<any> => {
+  const response = await apiClient.get(`/api/v1/resume/snapshots/${versionId}`);
+  return response;
+};
+
+/**
+ * 删除版本
+ */
+export const deleteVersion = async (versionId: number): Promise<any> => {
+  const response = await apiClient.delete(`/api/v1/resume/snapshots/${versionId}`);
   return response;
 };

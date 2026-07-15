@@ -17,10 +17,11 @@ import {
 import {
   HistoryOutlined,
   RollbackOutlined,
-  DownloadOutlined,
   EyeOutlined,
+  DeleteOutlined,
+  ArrowLeftOutlined,
 } from '@ant-design/icons';
-import { getResumeVersions, restoreResumeVersion } from '../../services/resume';
+import { getResumeVersions, getVersionDetail, deleteVersion } from '../../services/resume';
 import { formatDate } from '../../utils';
 import type { ResumeVersion } from '../../types';
 import type { ColumnsType } from 'antd/es/table';
@@ -31,23 +32,33 @@ const ResumeVersions: React.FC = () => {
   const { resumeId } = useParams<{ resumeId: string }>();
   const navigate = useNavigate();
 
-  const [versions, setVersions] = useState<ResumeVersion[]>([]);
+  const [versions, setVersions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [restoring, setRestoring] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [selectedVersion, setSelectedVersion] = useState<any>(null);
 
   useEffect(() => {
     if (resumeId) {
       loadVersions();
     }
-  }, [resumeId]);
+  }, [resumeId, page, pageSize]);
 
   const loadVersions = async () => {
     if (!resumeId) return;
 
     setLoading(true);
     try {
-      const data = await getResumeVersions(parseInt(resumeId));
-      setVersions(data);
+      const response = await getResumeVersions(parseInt(resumeId), page, pageSize);
+      console.log('=== Versions API Response:', response);
+      console.log('=== Versions array:', response.versions);
+      if (response.versions && response.versions.length > 0) {
+        console.log('=== First version:', response.versions[0]);
+      }
+      setVersions(response.versions || []);
+      setTotal(response.total || 0);
     } catch (error: any) {
       message.error(error || '加载版本列表失败');
     } finally {
@@ -55,33 +66,40 @@ const ResumeVersions: React.FC = () => {
     }
   };
 
-  const handleRestore = async (versionId: string) => {
-    if (!resumeId) return;
-
-    setRestoring(true);
+  const handleViewDetail = async (versionId: number) => {
     try {
-      await restoreResumeVersion(parseInt(resumeId), versionId);
-      message.success('版本恢复成功！');
-      navigate(`/resume/${resumeId}/diagnosis`);
+      setDetailModalVisible(true);
+      const detail = await getVersionDetail(versionId);
+      console.log('Version detail:', detail);
+      setSelectedVersion(detail);
     } catch (error: any) {
-      message.error(error || '恢复失败');
-    } finally {
-      setRestoring(false);
+      setDetailModalVisible(false);
+      message.error(error || '加载版本详情失败');
     }
   };
 
-  const columns: ColumnsType<ResumeVersion> = [
+  const handleDelete = async (versionId: number) => {
+    try {
+      await deleteVersion(versionId);
+      message.success('版本删除成功！');
+      loadVersions();
+    } catch (error: any) {
+      message.error(error || '删除失败');
+    }
+  };
+
+  const columns: ColumnsType<any> = [
     {
       title: '版本名称',
       dataIndex: 'version_name',
       key: 'version_name',
-      render: (text) => <Text strong>{text}</Text>,
+      render: (text) => <strong>{text}</strong>,
     },
     {
       title: '版本ID',
-      dataIndex: 'version_id',
-      key: 'version_id',
-      render: (text) => <Tag color="blue">{text.slice(0, 8)}</Tag>,
+      dataIndex: 'id',
+      key: 'id',
+      render: (text) => <Tag color="blue">#{text}</Tag>,
     },
     {
       title: '创建时间',
@@ -98,32 +116,25 @@ const ResumeVersions: React.FC = () => {
           <Button
             type="link"
             icon={<EyeOutlined />}
-            onClick={() => message.info('预览功能开发中')}
+            onClick={() => handleViewDetail(record.id)}
           >
-            预览
+            查看详情
           </Button>
           <Popconfirm
-            title="确认恢复此版本？"
-            description="恢复后将覆盖当前简历数据"
-            onConfirm={() => handleRestore(record.version_id)}
+            title="确认删除此版本？"
+            description="删除后无法恢复"
+            onConfirm={() => handleDelete(record.id)}
             okText="确认"
             cancelText="取消"
           >
             <Button
               type="link"
-              icon={<RollbackOutlined />}
-              loading={restoring}
+              danger
+              icon={<DeleteOutlined />}
             >
-              恢复
+              删除
             </Button>
           </Popconfirm>
-          <Button
-            type="link"
-            icon={<DownloadOutlined />}
-            onClick={() => message.info('下载功能开发中')}
-          >
-            下载
-          </Button>
         </Space>
       ),
     },
@@ -139,11 +150,14 @@ const ResumeVersions: React.FC = () => {
                 <Title level={2}>
                   <HistoryOutlined /> 版本历史
                 </Title>
-                <Text type="secondary">
-                  简历ID: {resumeId} | 共 {versions.length} 个版本
-                </Text>
+                <div style={{ color: 'rgba(0, 0, 0, 0.45)' }}>
+                  简历ID: {resumeId} | 共 {total} 个版本
+                </div>
               </div>
-              <Button onClick={() => navigate(`/resume/${resumeId}/diagnosis`)}>
+              <Button
+                icon={<ArrowLeftOutlined />}
+                onClick={() => navigate(`/resume/${resumeId}/diagnosis`)}
+              >
                 返回诊断
               </Button>
             </div>
@@ -154,16 +168,70 @@ const ResumeVersions: React.FC = () => {
           <Table
             columns={columns}
             dataSource={versions}
-            rowKey="version_id"
+            rowKey="id"
             loading={loading}
             pagination={{
-              pageSize: 10,
+              current: page,
+              pageSize: pageSize,
+              total: total,
               showSizeChanger: true,
               showTotal: (total) => `共 ${total} 个版本`,
+              onChange: (page, pageSize) => {
+                setPage(page);
+                setPageSize(pageSize);
+              },
             }}
           />
         </Card>
       </Space>
+
+      {/* 版本详情Modal */}
+      <Modal
+        title="版本详情"
+        open={detailModalVisible}
+        onCancel={() => {
+          setDetailModalVisible(false);
+          setSelectedVersion(null);
+        }}
+        footer={[
+          <Button key="close" onClick={() => {
+            setDetailModalVisible(false);
+            setSelectedVersion(null);
+          }}>
+            关闭
+          </Button>,
+        ]}
+        width={800}
+        destroyOnClose
+      >
+        {selectedVersion && (
+          <div style={{ padding: '16px' }}>
+            <p><strong>版本名称：</strong> {selectedVersion.version_name || '未命名'}</p>
+            <p><strong>创建时间：</strong> {selectedVersion.created_at ? formatDate(selectedVersion.created_at) : '未知'}</p>
+
+            {selectedVersion.diagnostic_data?.scores && (
+              <div style={{ marginTop: 16 }}>
+                <strong>总分：</strong> {selectedVersion.diagnostic_data.scores.total_score}
+              </div>
+            )}
+
+            <div style={{ marginTop: 16 }}>
+              <strong>完整数据：</strong>
+              <pre style={{
+                marginTop: 8,
+                padding: 12,
+                background: '#f5f5f5',
+                borderRadius: 4,
+                maxHeight: 400,
+                overflow: 'auto',
+                fontSize: 12
+              }}>
+                {JSON.stringify(selectedVersion, null, 2)}
+              </pre>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

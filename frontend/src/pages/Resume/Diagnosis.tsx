@@ -25,11 +25,13 @@ import {
   TrophyOutlined,
   BulbOutlined,
   RocketOutlined,
-  SaveOutlined,
   ThunderboltOutlined,
+  ReloadOutlined,
+  ArrowLeftOutlined,
+  SaveOutlined,
   HistoryOutlined,
 } from '@ant-design/icons';
-import { getResumeData, diagnoseResume, createResumeVersion, optimizeResume } from '../../services/resume';
+import { getResumeData, diagnoseResume, optimizeResume, createResumeVersion } from '../../services/resume';
 import { useAppStore } from '../../store';
 import { getScoreColor, getScoreLevel, getSeverityTag, formatDate } from '../../utils';
 import type { DiagnosisResult, ResumeData } from '../../types';
@@ -62,7 +64,13 @@ const ResumeDiagnosis: React.FC = () => {
         getResumeData(parseInt(resumeId)),
         diagnoseResume(parseInt(resumeId)),
       ]);
-      setResumeData(resumeDataRes);
+
+      // 如果parsed_data是字符串，解析它
+      if (resumeDataRes.parsed_data && typeof resumeDataRes.parsed_data === 'string') {
+        resumeDataRes.parsed_data = JSON.parse(resumeDataRes.parsed_data);
+      }
+
+      setResumeData(resumeDataRes.parsed_data || resumeDataRes);
       setDiagnosisResult(diagnosisRes);
     } catch (error: any) {
       message.error(error || '加载失败');
@@ -90,18 +98,28 @@ const ResumeDiagnosis: React.FC = () => {
   };
 
   const handleSaveVersion = async () => {
-    if (!resumeId || !versionName.trim()) {
+    if (!versionName.trim()) {
       message.warning('请输入版本名称');
       return;
     }
 
+    if (!diagnosisResult) {
+      message.warning('请先进行简历诊断或优化');
+      return;
+    }
+
     try {
-      await createResumeVersion(parseInt(resumeId), versionName);
+      await createResumeVersion(
+        parseInt(resumeId!),
+        versionName,
+        diagnosisResult.scores,
+        diagnosisResult.optimization
+      );
       message.success('版本保存成功！');
       setSaveModalVisible(false);
       setVersionName('');
     } catch (error: any) {
-      message.error(error || '保存失败');
+      message.error(error || '保存版本失败');
     }
   };
 
@@ -145,7 +163,12 @@ const ResumeDiagnosis: React.FC = () => {
     : [];
   console.log('suggestions:', suggestions);
 
-  const optimized_sections = diagnosisResult?.optimized_sections || [];
+  // 提取优化内容
+  const optimization = diagnosisResult?.optimization;
+  const general_suggestions = optimization?.general_suggestions || [];
+  const priority_actions = optimization?.priority_actions || [];
+  const overall_summary = optimization?.overall_summary || '';
+  const has_optimization = general_suggestions.length > 0 || priority_actions.length > 0;
 
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
@@ -169,6 +192,17 @@ const ResumeDiagnosis: React.FC = () => {
                 </Button>
                 <Button icon={<SaveOutlined />} onClick={() => setSaveModalVisible(true)}>
                   保存版本
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<ReloadOutlined />}
+                  onClick={loadDiagnosisResult}
+                  loading={loading}
+                >
+                  刷新
+                </Button>
+                <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/resume/upload')}>
+                  返回上传
                 </Button>
                 <Button
                   type="primary"
@@ -282,16 +316,115 @@ const ResumeDiagnosis: React.FC = () => {
           </Space>
         </Card>
 
-        {/* 优化后的内容 */}
-        {optimized_sections && Object.keys(optimized_sections).length > 0 && (
-          <Card title={<><RocketOutlined /> 优化后的内容</>}>
-            <Collapse>
-              {Object.entries(optimized_sections).map(([key, value]) => (
-                <Panel header={key} key={key}>
-                  <Paragraph style={{ whiteSpace: 'pre-wrap' }}>{value}</Paragraph>
-                </Panel>
-              ))}
-            </Collapse>
+        {/* 优化建议详情 */}
+        {has_optimization && (
+          <Card title={<><RocketOutlined /> 优化建议详情</>}>
+            <Space direction="vertical" size="large" style={{ width: '100%' }}>
+              {/* 总体摘要 */}
+              {overall_summary && (
+                <Alert
+                  message="优化总结"
+                  description={overall_summary}
+                  type="info"
+                  showIcon
+                />
+              )}
+
+              {/* 优先行动 */}
+              {priority_actions.length > 0 && (
+                <div>
+                  <Title level={4}>优先改进项</Title>
+                  <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                    {priority_actions.map((action: any, index: number) => (
+                      <Card key={index} size="small" type="inner">
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                          <div>
+                            <Tag color="red">高优先级</Tag>
+                          </div>
+                          <Alert
+                            message={typeof action === 'string' ? action : action.description}
+                            type="error"
+                            showIcon
+                          />
+                        </Space>
+                      </Card>
+                    ))}
+                  </Space>
+                </div>
+              )}
+
+              {/* 详细建议 */}
+              {general_suggestions.length > 0 && (
+                <div>
+                  <Title level={4}>详细优化建议</Title>
+                  <Collapse>
+                    {general_suggestions.map((suggestion: any, index: number) => {
+                      // 优先级映射：支持中英文
+                      const getPriorityConfig = (priority: string) => {
+                        const p = priority?.toLowerCase() || '';
+                        if (p === 'high' || p === '高') return { color: 'red', text: '高' };
+                        if (p === 'medium' || p === '中') return { color: 'orange', text: '中' };
+                        return { color: 'blue', text: '低' };
+                      };
+                      const priorityConfig = getPriorityConfig(suggestion.priority);
+
+                      return (
+                        <Panel
+                          header={
+                            <Space>
+                              <Tag color={priorityConfig.color}>
+                                {priorityConfig.text}
+                              </Tag>
+                              <Text strong>{suggestion.title}</Text>
+                            </Space>
+                          }
+                          key={index}
+                        >
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                          <Descriptions column={1} size="small">
+                            <Descriptions.Item label="类别">{suggestion.category}</Descriptions.Item>
+                            <Descriptions.Item label="说明">{suggestion.description}</Descriptions.Item>
+                            {suggestion.reason && (
+                              <Descriptions.Item label="原因">{suggestion.reason}</Descriptions.Item>
+                            )}
+                          </Descriptions>
+
+                          {suggestion.current_content && (
+                            <div>
+                              <Text type="secondary">当前内容：</Text>
+                              <Card size="small" style={{ backgroundColor: '#fff1f0' }}>
+                                <Paragraph style={{ margin: 0 }}>{suggestion.current_content}</Paragraph>
+                              </Card>
+                            </div>
+                          )}
+
+                          {suggestion.suggested_content && (
+                            <div>
+                              <Text type="secondary">建议修改为：</Text>
+                              <Card size="small" style={{ backgroundColor: '#f6ffed' }}>
+                                <Paragraph style={{ margin: 0 }}>{suggestion.suggested_content}</Paragraph>
+                              </Card>
+                            </div>
+                          )}
+
+                          {suggestion.examples && suggestion.examples.length > 0 && (
+                            <div>
+                              <Text type="secondary">示例：</Text>
+                              {suggestion.examples.map((example: string, idx: number) => (
+                                <Card key={idx} size="small" style={{ marginTop: '8px' }}>
+                                  <Paragraph style={{ margin: 0 }}>{example}</Paragraph>
+                                </Card>
+                              ))}
+                            </div>
+                          )}
+                        </Space>
+                      </Panel>
+                      );
+                    })}
+                  </Collapse>
+                </div>
+              )}
+            </Space>
           </Card>
         )}
 
@@ -361,11 +494,12 @@ const ResumeDiagnosis: React.FC = () => {
         onCancel={() => setSaveModalVisible(false)}
       >
         <Space direction="vertical" style={{ width: '100%' }}>
-          <Text>为当前简历创建一个版本快照，便于后续投递使用</Text>
+          <Text>为当前简历状态创建一个版本快照（包含诊断评分和优化建议）</Text>
           <Input
-            placeholder="请输入版本名称（如：字节跳动-后端开发）"
+            placeholder="请输入版本名称（如：字节跳动-后端开发 v1.0）"
             value={versionName}
             onChange={(e) => setVersionName(e.target.value)}
+            onPressEnter={handleSaveVersion}
           />
         </Space>
       </Modal>

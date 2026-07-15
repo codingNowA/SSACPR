@@ -100,6 +100,10 @@ const JobMatch: React.FC = () => {
   };
 
   const renderJobCard = (job: JobMatchResult) => {
+    const handleViewDetail = () => {
+      window.open(`https://www.zhipin.com/job_detail/${job.job_id}.html`, '_blank');
+    };
+
     return (
       <Card
         key={job.job_id}
@@ -163,7 +167,7 @@ const JobMatch: React.FC = () => {
                   </div>
                 )}
               />
-              <Button type="primary" size="small" style={{ marginTop: '16px' }}>
+              <Button type="primary" size="small" style={{ marginTop: '16px' }} onClick={handleViewDetail}>
                 查看详情
               </Button>
             </div>

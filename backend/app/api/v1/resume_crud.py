@@ -179,3 +179,100 @@ async def diagnose_resume_by_id(resume_id: int):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"诊断简历失败: {str(e)}"
         )
+
+
+@router.get("/{resume_id}/scores")
+async def get_resume_scores(resume_id: int):
+    """
+    获取简历评分（诊断结果）
+
+    Args:
+        resume_id: 简历ID
+
+    Returns:
+        评分结果
+    """
+    return await diagnose_resume_by_id(resume_id)
+
+
+@router.post("/{resume_id}/optimize")
+async def optimize_resume_by_id(resume_id: int, job_title: str = None):
+    """
+    优化已上传的简历
+
+    Args:
+        resume_id: 简历ID
+        job_title: 目标岗位（可选）
+
+    Returns:
+        优化后的诊断结果
+    """
+    try:
+        from app.core.resume.scorer import resume_scorer
+        from app.core.resume.optimizer import resume_optimizer
+        from app.core.resume import resume_parser
+
+        # 获取简历数据
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT file_path, parsed_data FROM resumes WHERE id = $1 AND status = 'active'",
+                resume_id
+            )
+
+            if not row or not row['parsed_data']:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"简历 {resume_id} 不存在或未解析"
+                )
+
+            file_path = row['file_path']
+            parsed_data = row['parsed_data']
+
+            # 重新解析文件以获取文本
+            parse_result = resume_parser.parse(file_path)
+            resume_text = parse_result.get('text', '')
+
+            # 将 parsed_data 转换为 Pydantic 模型
+            import json
+            from app.schemas.resume_structured import ResumeStructuredData
+
+            if isinstance(parsed_data, str):
+                parsed_data_dict = json.loads(parsed_data)
+            else:
+                parsed_data_dict = parsed_data
+
+            structured_data = ResumeStructuredData(**parsed_data_dict)
+
+            # 调用评分器
+            score_result = await resume_scorer.score_resume(
+                structured_data=structured_data,
+                resume_text=resume_text,
+                job_title=job_title
+            )
+
+            # 调用优化器
+            optimization_result = await resume_optimizer.optimize_resume(
+                structured_data=structured_data,
+                score=score_result,
+                resume_text=resume_text,
+                job_title=job_title
+            )
+
+            return ApiResponse(
+                code=200,
+                message="优化成功",
+                data={
+                    "resume_id": resume_id,
+                    "scores": score_result.dict(),
+                    "optimization": optimization_result.dict()
+                }
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"优化简历失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"优化简历失败: {str(e)}"
+        )
