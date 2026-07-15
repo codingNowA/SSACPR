@@ -147,6 +147,7 @@ const ResumeUpload: React.FC = () => {
                 uid: '-1',
                 name: file.name,
                 status: 'done',
+                size: file.size,
                 originFileObj: file,
               } as any]);
               return false;
@@ -172,7 +173,7 @@ const ResumeUpload: React.FC = () => {
                 <Text strong>已选择文件:</Text>
                 <Text>{fileList[0].name}</Text>
                 <Text type="secondary">
-                  大小: {formatFileSize(fileList[0].size || 0)}
+                  大小: {formatFileSize(fileList[0].size || fileList[0].originFileObj?.size || 0)}
                 </Text>
               </Space>
             </Card>

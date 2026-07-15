@@ -138,6 +138,21 @@ CREATE INDEX idx_applications_job_id ON applications(job_id);
 CREATE INDEX idx_applications_status ON applications(status);
 CREATE INDEX idx_applications_apply_date ON applications(apply_date DESC);
 
+-- 简历版本快照表
+CREATE TABLE IF NOT EXISTS resume_versions (
+    id SERIAL PRIMARY KEY,
+    resume_id INT REFERENCES resumes(id) ON DELETE CASCADE,
+    version_name VARCHAR(100) NOT NULL,
+    parsed_data JSONB,
+    scores JSONB,
+    optimization JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_resume_versions_resume_id ON resume_versions(resume_id);
+CREATE INDEX idx_resume_versions_created_at ON resume_versions(created_at DESC);
+
 -- 系统日志表
 CREATE TABLE IF NOT EXISTS logs (
     id SERIAL PRIMARY KEY,
@@ -177,6 +192,9 @@ CREATE TRIGGER update_jobs_updated_at BEFORE UPDATE ON jobs
 CREATE TRIGGER update_applications_updated_at BEFORE UPDATE ON applications
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_resume_versions_updated_at BEFORE UPDATE ON resume_versions
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- 插入默认管理员账户（密码: admin123，需要在应用中进行哈希处理）
 INSERT INTO users (username, password_hash, email, role, real_name)
 VALUES ('admin', '$2b$12$placeholder_hash', 'admin@example.com', 'admin', '系统管理员')
@@ -186,6 +204,6 @@ ON CONFLICT (username) DO NOTHING;
 DO $$
 BEGIN
     RAISE NOTICE '数据库初始化完成！';
-    RAISE NOTICE '已创建以下表：users, resumes, jobs, matches, interview_questions, collections, applications, logs';
+    RAISE NOTICE '已创建以下表：users, resumes, jobs, matches, interview_questions, collections, applications, resume_versions, logs';
     RAISE NOTICE '默认管理员账户：username=admin, password=admin123（首次登录请修改密码）';
 END $$;

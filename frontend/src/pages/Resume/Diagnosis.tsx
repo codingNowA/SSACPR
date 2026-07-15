@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 简历诊断结果页面
  */
 import React, { useEffect, useState } from 'react';
@@ -429,40 +429,35 @@ const ResumeDiagnosis: React.FC = () => {
         )}
 
         {/* 简历详细信息 */}
-        {resumeData && (
+        {(() => {
+          let d = resumeData;
+          if (resumeData?.parsed_data && typeof resumeData.parsed_data === 'object') {
+            d = resumeData.parsed_data;
+          }
+          return d && (
           <Card title="简历详细信息">
             <Collapse>
-              {resumeData.basic_info && (
+              {d.basic_info && (
                 <Panel header="基本信息" key="basic">
                   <Descriptions column={2}>
-                    <Descriptions.Item label="姓名">
-                      {resumeData.basic_info.name}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="电话">
-                      {resumeData.basic_info.phone}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="邮箱">
-                      {resumeData.basic_info.email}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="求职意向">
-                      {resumeData.basic_info.job_intention}
-                    </Descriptions.Item>
+                    <Descriptions.Item label="姓名">{d.basic_info.name}</Descriptions.Item>
+                    <Descriptions.Item label="电话">{d.basic_info.phone}</Descriptions.Item>
+                    <Descriptions.Item label="邮箱">{d.basic_info.email}</Descriptions.Item>
+                    <Descriptions.Item label="求职意向">{d.basic_info.job_intention}</Descriptions.Item>
                   </Descriptions>
                 </Panel>
               )}
 
-              {resumeData.education && resumeData.education.length > 0 && (
-                <Panel header={`教育经历 (${resumeData.education.length})`} key="education">
+              {d.education && d.education.length > 0 && (
+                <Panel header={`教育经历 (${d.education.length})`} key="education">
                   <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                    {resumeData.education.map((edu, idx) => (
+                    {d.education.map((edu, idx) => (
                       <Card key={idx} size="small" type="inner">
                         <Descriptions column={2}>
                           <Descriptions.Item label="学校">{edu.school}</Descriptions.Item>
                           <Descriptions.Item label="专业">{edu.major}</Descriptions.Item>
                           <Descriptions.Item label="学历">{edu.degree}</Descriptions.Item>
-                          <Descriptions.Item label="时间">
-                            {edu.start_date} - {edu.end_date}
-                          </Descriptions.Item>
+                          <Descriptions.Item label="时间">{edu.start_date} - {edu.end_date}</Descriptions.Item>
                         </Descriptions>
                       </Card>
                     ))}
@@ -470,10 +465,26 @@ const ResumeDiagnosis: React.FC = () => {
                 </Panel>
               )}
 
-              {resumeData.skills && resumeData.skills.length > 0 && (
-                <Panel header={`技能标签 (${resumeData.skills.length})`} key="skills">
+              {d.work_experience && d.work_experience.length > 0 && (
+                <Panel header={`工作经历 (${d.work_experience.length})`} key="work">
+                  <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                    {d.work_experience.map((w, idx) => (
+                      <Card key={idx} size="small" type="inner">
+                        <Descriptions column={2}>
+                          <Descriptions.Item label="公司">{w.company}</Descriptions.Item>
+                          <Descriptions.Item label="职位">{w.position}</Descriptions.Item>
+                          <Descriptions.Item label="时间">{w.start_date} - {w.end_date || '至今'}</Descriptions.Item>
+                        </Descriptions>
+                      </Card>
+                    ))}
+                  </Space>
+                </Panel>
+              )}
+
+              {d.skills && d.skills.length > 0 && (
+                <Panel header={`技能标签 (${d.skills.length})`} key="skills">
                   <Space wrap>
-                    {resumeData.skills.map((skill, idx) => (
+                    {d.skills.map((skill, idx) => (
                       <Tag key={idx} color="blue">
                         {typeof skill === 'string' ? skill : skill.name}
                       </Tag>
@@ -483,7 +494,8 @@ const ResumeDiagnosis: React.FC = () => {
               )}
             </Collapse>
           </Card>
-        )}
+          );
+        })()}
       </Space>
 
       {/* 保存版本弹窗 */}
