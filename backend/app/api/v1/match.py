@@ -16,10 +16,7 @@ router = APIRouter(prefix="/match", tags=["岗位匹配"])
 
 
 @router.post("/calculate", summary="计算岗位匹配")
-async def calculate_match(
-    request: JobMatchRequest,
-    _user: dict = Depends(get_current_user),
-) -> ApiResponse[JobMatchResponse]:
+async def calculate_match(request: JobMatchRequest, _user: dict = Depends(get_current_user),) -> ApiResponse[JobMatchResponse]:
     """
     根据简历和用户偏好计算岗位匹配度
 
@@ -37,12 +34,10 @@ async def calculate_match(
 
 
 @router.get("/history", summary="获取匹配历史")
-async def get_match_history(
-    resume_id: Optional[int] = Query(default=None, description="简历 ID"),
+async def get_match_history(_user: dict = Depends(get_current_user), resume_id: Optional[int] = Query(default=None, description="简历 ID"),
     user_id: Optional[int] = Query(default=None, description="用户 ID"),
     page: int = Query(default=1, ge=1, description="页码"),
     page_size: int = Query(default=20, ge=1, le=100, description="每页数量"),
-    _user: dict = Depends(get_current_user),
 ) -> ApiResponse[MatchHistoryResponse]:
     """查询匹配历史记录"""
     if resume_id is None and user_id is None:
