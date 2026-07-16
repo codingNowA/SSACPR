@@ -667,3 +667,277 @@
 - [ ] 难度分级合理
 - [ ] 支持多种岗位类型（前端、后端、算法、全栈等）
 - [ ] 异常情况处理正确（文本过短、数量越界等）
+
+### AI模拟面试
+- [ ] 能够评估用户的面试回答
+- [ ] 评分合理（0-100分）
+- [ ] 能够识别回答的优点和不足
+- [ ] 提供具体的改进建议
+- [ ] 列出遗漏的关键要点
+- [ ] 支持批量评估多道题
+- [ ] 计算平均分和整体评价
+- [ ] 生成整体总结和改进方向
+
+---
+
+## 八、AI模拟面试问答测试用例
+
+### 测试用例 1：Java集合框架回答评估
+
+**接口**：POST /api/v1/mock-interview/evaluate
+
+```json
+{
+  "question": "请介绍一下Java中的集合框架",
+  "user_answer": "Java集合框架主要分为两大体系：Collection和Map。\n\nCollection接口下包括：\n1. List：有序可重复，常用ArrayList和LinkedList\n2. Set：无序不重复，常用HashSet和TreeSet\n3. Queue：队列操作，常用LinkedList和PriorityQueue\n\nMap接口是键值对映射，常用HashMap、TreeMap等。\n\n选择时要考虑是否需要有序、是否允许重复、查询和插入的性能要求。"
+}
+```
+
+**预期结果**：
+- 得分：70-80分
+- 评价：良好/一般
+- 优点：覆盖核心要点、结构清晰
+- 不足：可以补充具体案例
+- 参考答案：返回集合框架的完整要点
+
+---
+
+### 测试用例 2：简短回答评估（低分）
+
+**接口**：POST /api/v1/mock-interview/evaluate
+
+```json
+{
+  "question": "什么是HashMap？",
+  "user_answer": "HashMap是Java中的一个键值对集合。"
+}
+```
+
+**预期结果**：
+- 得分：< 70分
+- 评价：需改进/一般
+- 不足：回答过于简短、遗漏重要知识点
+- 建议：展开详细说明、补充底层原理
+
+---
+
+### 测试用例 3：优秀回答评估（高分）
+
+**接口**：POST /api/v1/mock-interview/evaluate
+
+```json
+{
+  "question": "请解释Python中的装饰器",
+  "user_answer": "装饰器是Python中的一个重要特性，本质上是一个高阶函数，它接收一个函数作为参数，返回一个新的函数。\n\n使用@语法糖可以简化装饰器的调用。例如：\n@login_required\ndef view_profile():\n    pass\n\n常见应用场景包括：\n- 日志记录\n- 权限校验\n- 性能计时\n- 缓存\n\n装饰器可以叠加使用，执行顺序从下到上。使用functools.wraps可以保留原函数的元信息。"
+}
+```
+
+**预期结果**：
+- 得分：≥ 85分
+- 评价：优秀/良好
+- 优点：有案例、结构清晰、详细充分
+- 不足：可以补充带参数的装饰器
+
+---
+
+### 测试用例 4：算法题回答评估
+
+**接口**：POST /api/v1/mock-interview/evaluate
+
+```json
+{
+  "question": "请介绍一下快速排序算法",
+  "user_answer": "快速排序是一种基于分治思想的高效排序算法。\n\n核心思想：\n1. 选择一个pivot（基准值）\n2. 将小于pivot的元素放左边，大于pivot的放右边\n3. 递归对左右两部分进行排序\n\n时间复杂度：\n- 平均：O(nlogn)\n- 最坏：O(n²)，当数组已经有序时\n\n空间复杂度：O(logn)，主要是递归栈的开销\n\n优化方法：\n- 三数取中法选择pivot，避免最坏情况\n- 当子数组较小时，切换到插入排序\n- 尾递归优化\n\n实际应用：快速排序是实践中最常用的排序算法之一，例如Java的Arrays.sort()对基本类型就使用了快排的变种。\n\n相比归并排序，快排的优势是原地排序，不需要额外空间；缺点是不稳定排序。"
+}
+```
+
+**预期结果**：
+- 得分：≥ 85分
+- 评价：优秀/良好
+- 优点：有案例、有对比、结构清晰、详细充分
+- 所有加分项都满足
+
+---
+
+### 测试用例 5：批量评估
+
+**接口**：POST /api/v1/mock-interview/batch-evaluate
+
+```json
+{
+  "answers": [
+    {
+      "question": "请介绍一下Java中的集合框架",
+      "user_answer": "Java集合框架包括Collection和Map两大体系。Collection包括List、Set、Queue。",
+      "question_category": "基础知识",
+      "question_difficulty": "中等"
+    },
+    {
+      "question": "什么是HashMap？",
+      "user_answer": "HashMap是基于哈希表的Map接口实现，底层是数组+链表+红黑树。",
+      "question_category": "基础知识",
+      "question_difficulty": "中等"
+    },
+    {
+      "question": "Python装饰器是什么？",
+      "user_answer": "装饰器是高阶函数，用于修改或增强函数功能，常用于日志、权限校验等场景。",
+      "question_category": "基础知识",
+      "question_difficulty": "中等"
+    }
+  ]
+}
+```
+
+**预期结果**：
+- total_questions: 3
+- average_score: 60-75分
+- overall_evaluation: 一般/良好
+- feedbacks: 包含3个详细反馈
+- summary: 整体优缺点总结和改进建议
+
+---
+
+### 测试用例 6：遗漏要点识别
+
+**接口**：POST /api/v1/mock-interview/evaluate
+
+```json
+{
+  "question": "请说明MySQL的事务隔离级别",
+  "user_answer": "MySQL有四个事务隔离级别，分别是读未提交和读已提交。"
+}
+```
+
+**预期结果**：
+- 得分：< 70分
+- missing_points: 包含"可重复读"、"串行化"等
+- 建议：补充遗漏的隔离级别
+
+---
+
+### 测试用例 7：文本过短（异常测试）
+
+**接口**：POST /api/v1/mock-interview/evaluate
+
+```json
+{
+  "question": "什么是HashMap？",
+  "user_answer": "集合"
+}
+```
+
+**预期结果**：
+- HTTP 400 错误
+- 错误信息："回答内容过短，请提供至少10个字符的回答"
+
+---
+
+### 测试用例 8：批量评估超出限制（异常测试）
+
+**接口**：POST /api/v1/mock-interview/batch-evaluate
+
+```json
+{
+  "answers": [
+    {
+      "question": "题目1",
+      "user_answer": "回答内容至少10个字符..."
+    }
+    // ... 共21道题
+  ]
+}
+```
+
+**预期结果**：
+- HTTP 400 错误
+- 错误信息："单次最多评估20道题目"
+
+---
+
+## 九、AI模拟面试功能说明
+
+### 评分维度
+
+1. **要点覆盖度（60分）**
+   - 完全覆盖：60分
+   - 部分覆盖：按比例计分
+   - 未覆盖：0分
+
+2. **回答长度（10分）**
+   - ≥ 200字：10分
+   - ≥ 100字：7分
+   - ≥ 50字：5分
+
+3. **案例说明（10分）**
+   - 有具体案例或示例：10分
+   - 无：0分
+
+4. **对比分析（10分）**
+   - 有对比分析：10分
+   - 无：0分
+
+5. **结构清晰（10分）**
+   - 有分点阐述、逻辑清晰：10分
+   - 无：0分
+
+### 评价等级
+
+- **优秀**：90-100分
+- **良好**：75-89分
+- **一般**：60-74分
+- **需改进**：< 60分
+
+### 响应结构示例
+
+```json
+{
+  "success": true,
+  "feedback": {
+    "score": 85,
+    "evaluation": "良好",
+    "strengths": [
+      "回答覆盖了4个核心要点，内容全面",
+      "回答结构清晰，逻辑完整",
+      "回答详细充分，表达完整"
+    ],
+    "weaknesses": [
+      "缺少具体案例或实际应用场景说明"
+    ],
+    "suggestions": [
+      "准备1-2个实际项目中的使用案例"
+    ],
+    "missing_points": [],
+    "improvement_advice": "回答较好地覆盖了核心内容。建议进一步深入底层原理，并结合实际项目经验进行说明。"
+  },
+  "reference_answer": [
+    "Collection和Map两大接口体系",
+    "List（ArrayList、LinkedList）：有序可重复",
+    "Set（HashSet、TreeSet）：无序不重复",
+    "Queue（LinkedList、PriorityQueue）：队列操作",
+    "Map（HashMap、TreeMap、LinkedHashMap）：键值对映射",
+    "选择依据：是否有序、是否重复、查询/插入性能"
+  ],
+  "message": "答题反馈生成成功"
+}
+```
+
+### 使用建议
+
+1. **回答技巧**
+   - 覆盖核心要点（最重要）
+   - 提供具体案例或实际应用场景
+   - 进行对比分析（展现深度）
+   - 采用结构化表达（分点阐述）
+   - 详细充分（200字以上为佳）
+
+2. **改进方向**
+   - 根据`missing_points`补充遗漏内容
+   - 参考`reference_answer`完善知识体系
+   - 按照`suggestions`针对性改进
+   - 多做练习，形成答题模板
+
+3. **批量评估场景**
+   - 完成一套模拟面试后整体评估
+   - 阶段性学习成果检验
+   - 识别知识体系中的薄弱环节
+   - 跟踪学习进度
