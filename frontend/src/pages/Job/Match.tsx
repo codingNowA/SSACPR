@@ -2,7 +2,7 @@
  * 岗位匹配页面
  */
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Card,
   Row,
@@ -41,12 +41,14 @@ const { Option } = Select;
 
 const JobMatch: React.FC = () => {
   const { resumeId } = useParams<{ resumeId: string }>();
+  const navigate = useNavigate();
   const { setResumeData } = useAppStore();
 
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [matchResult, setMatchResult] = useState<JobMatchResponse | null>(null);
   const [showFilter, setShowFilter] = useState(false);
+  const [useLocalModel, setUseLocalModel] = useState(true); // 默认使用本地模型
 
   useEffect(() => {
     if (resumeId) {
@@ -73,6 +75,7 @@ const JobMatch: React.FC = () => {
         resume_id: parseInt(resumeId),
         preferences,
         top_k: 20,
+        use_local_model: useLocalModel, // 传递匹配模式
       });
       setMatchResult(result);
       message.success(`匹配完成！共找到 ${result.total} 个岗位`);
@@ -99,6 +102,14 @@ const JobMatch: React.FC = () => {
   const renderJobCard = (job: JobMatchResult) => {
     const handleViewDetail = () => {
       window.open(`https://www.zhipin.com/job_detail/${job.job_id}.html`, '_blank');
+    };
+
+    const handleViewInterpret = () => {
+      navigate(`/job/interpret/${job.job_id}?resumeId=${resumeId}`);
+    };
+
+    const handlePrepareInterview = () => {
+      navigate(`/interview/prep?jobId=${job.job_id}&resumeId=${resumeId}`);
     };
 
     return (
@@ -164,9 +175,17 @@ const JobMatch: React.FC = () => {
                   </div>
                 )}
               />
-              <Button type="primary" size="small" style={{ marginTop: '16px' }} onClick={handleViewDetail}>
-                查看详情
-              </Button>
+              <Space direction="vertical" style={{ marginTop: '16px', width: '100%' }}>
+                <Button type="primary" size="small" block onClick={handleViewInterpret}>
+                  查看解读
+                </Button>
+                <Button size="small" block onClick={handlePrepareInterview}>
+                  准备面试
+                </Button>
+                <Button size="small" block onClick={handleViewDetail}>
+                  查看详情
+                </Button>
+              </Space>
             </div>
           </Col>
         </Row>
@@ -190,6 +209,14 @@ const JobMatch: React.FC = () => {
             </Col>
             <Col>
               <Space>
+                <Select
+                  value={useLocalModel}
+                  onChange={setUseLocalModel}
+                  style={{ width: 150 }}
+                >
+                  <Option value={true}>本地算法</Option>
+                  <Option value={false}>LLM增强</Option>
+                </Select>
                 <Button
                   icon={<FilterOutlined />}
                   onClick={() => setShowFilter(!showFilter)}
@@ -207,6 +234,16 @@ const JobMatch: React.FC = () => {
               </Space>
             </Col>
           </Row>
+          {/* 模式说明 */}
+          <Alert
+            message={useLocalModel
+              ? "本地算法：基于规则快速匹配，稳定可靠，响应迅速"
+              : "LLM增强：使用AI大模型深度分析，更智能但响应较慢"
+            }
+            type="info"
+            showIcon
+            style={{ marginTop: 16 }}
+          />
         </Card>
 
         {/* 筛选条件 */}

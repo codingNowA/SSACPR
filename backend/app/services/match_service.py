@@ -144,9 +144,10 @@ class JobMatcher:
     """岗位匹配器"""
 
     # 权重配置
-    WEIGHT_SKILL = 0.45        # 技能关键词匹配
-    WEIGHT_SEMANTIC = 0.35     # 语义匹配（基于 OpenSearch 相关度）
+    WEIGHT_SKILL = 0.40        # 技能关键词匹配（降低以腾出空间给难度）
+    WEIGHT_SEMANTIC = 0.30     # 语义匹配（基于 OpenSearch 相关度）
     WEIGHT_PREFERENCE = 0.20   # 用户偏好匹配
+    WEIGHT_DIFFICULTY = 0.10   # 岗位难度适配性（新增）
 
     # 分层阈值
     THRESHOLD_HIGH = 80.0
@@ -253,6 +254,7 @@ class JobMatcher:
             "skill_score": float,       # 技能匹配分 0-100
             "semantic_score": float,    # 语义相关度 0-100
             "preference_score": float,  # 偏好匹配分 0-100
+            "difficulty_score": float,  # 难度适配分 0-100（新增）
             "final_score": float,       # 加权总分 0-100
             "matched_skills": [...],
             "missing_skills": [...],
@@ -291,17 +293,22 @@ class JobMatcher:
         # --- 偏好匹配 ---
         preference_score = self._preference_score(candidate, preferences)
 
+        # --- 难度适配性评分（新增）---
+        difficulty_score = self._difficulty_fit_score(profile, candidate)
+
         # --- 加权总分 ---
         final_score = (
             self.WEIGHT_SKILL * skill_score
             + self.WEIGHT_SEMANTIC * semantic_score
             + self.WEIGHT_PREFERENCE * preference_score
+            + self.WEIGHT_DIFFICULTY * difficulty_score
         )
 
         return {
             "skill_score": round(skill_score, 1),
             "semantic_score": round(semantic_score, 1),
             "preference_score": round(preference_score, 1),
+            "difficulty_score": round(difficulty_score, 1),
             "final_score": round(final_score, 1),
             "matched_skills": sorted(matched),
             "missing_skills": sorted(missing),
@@ -378,6 +385,184 @@ class JobMatcher:
             return 50.0
 
         return hits / total * 100
+
+    def _difficulty_fit_score(
+        self,
+        profile: ResumeProfile,
+        candidate: Dict[str, Any],
+    ) -> float:
+        """
+        计算岗位难度适配性评分
+
+        评估简历能力与岗位难度的匹配度：
+        - 能力远超岗位难度：可能导致人才浪费，降低匹配度
+        - 能力略高于岗位难度：最佳匹配，高分
+        - 能力与岗位难度相当：良好匹配，中高分
+        - 能力略低于岗位难度：有挑战性但可胜任，中等分
+        - 能力远低于岗位难度：可能无法胜任，低分
+
+        返回: 0-100 分
+        """
+        # 1. 估算简历能力等级（0-100）
+        candidate_level = self._estimate_candidate_level(profile)
+
+        # 2. 获取岗位难度评分（0-100）
+        # 优先从 job_profile 中获取难度评估数据
+        job_profile = candidate.get("job_profile", {})
+
+        # 如果 job_profile 是字符串，尝试解析
+        if isinstance(job_profile, str):
+            try:
+                job_profile = json.loads(job_profile)
+            except (json.JSONDecodeError, TypeError):
+                job_profile = {}
+
+        # 从岗位难度评估中获取综合难度分
+        difficulty_assessment = job_profile.get("difficulty_assessment", {})
+        if difficulty_assessment:
+            job_difficulty = difficulty_assessment.get("difficulty_score", 50)
+        else:
+            # 如果没有难度评估，基于岗位要求估算
+            job_difficulty = self._estimate_job_difficulty(candidate)
+
+        # 3. 计算适配度
+        # 使用高斯分布：最佳匹配点在候选人能力略高于岗位难度时
+        optimal_gap = 5  # 最佳差距：候选人能力比岗位难度高5分
+        actual_gap = candidate_level - job_difficulty
+
+        # 标准差控制曲线宽度
+        sigma = 15
+
+        # 高斯函数计算适配度
+        fit_score = 100 * math.exp(-((actual_gap - optimal_gap) ** 2) / (2 * sigma ** 2))
+
+        # 特殊情况调整
+        if actual_gap < -30:
+            # 能力远低于要求，进一步降低分数
+            fit_score *= 0.5
+        elif actual_gap > 40:
+            # 能力过于超出，可能大材小用
+            fit_score *= 0.7
+
+        return round(fit_score, 1)
+
+    def _estimate_candidate_level(self, profile: ResumeProfile) -> float:
+        """
+        估算候选人能力等级（0-100）
+
+        综合考虑：
+        - 工作年限（40%）
+        - 技能数量和质量（30%）
+        - 学历（20%）
+        - 项目经验（10%）
+        """
+        scores = []
+
+        # 1. 工作年限评分
+        work_years = profile.work_years or 0
+        if work_years >= 10:
+            years_score = 95
+        elif work_years >= 7:
+            years_score = 85
+        elif work_years >= 5:
+            years_score = 70
+        elif work_years >= 3:
+            years_score = 55
+        elif work_years >= 1:
+            years_score = 40
+        else:
+            years_score = 25
+        scores.append(("work_years", years_score, 0.40))
+
+        # 2. 技能评分
+        skill_count = len(profile.skills) if profile.skills else 0
+        if skill_count >= 10:
+            skill_score = 90
+        elif skill_count >= 7:
+            skill_score = 75
+        elif skill_count >= 5:
+            skill_score = 60
+        elif skill_count >= 3:
+            skill_score = 45
+        else:
+            skill_score = 30
+        scores.append(("skills", skill_score, 0.30))
+
+        # 3. 学历评分
+        education = (profile.education or "").lower()
+        if "博士" in education or "phd" in education:
+            edu_score = 95
+        elif "硕士" in education or "master" in education:
+            edu_score = 80
+        elif "本科" in education or "bachelor" in education:
+            edu_score = 60
+        elif "大专" in education or "college" in education:
+            edu_score = 40
+        else:
+            edu_score = 50  # 默认中等
+        scores.append(("education", edu_score, 0.20))
+
+        # 4. 项目经验评分（简化评估）
+        # 这里用工作年限的一半作为项目经验指标
+        project_score = min(work_years * 8, 80)
+        scores.append(("projects", project_score, 0.10))
+
+        # 加权计算
+        total_score = sum(score * weight for _, score, weight in scores)
+
+        return round(total_score, 1)
+
+    def _estimate_job_difficulty(self, candidate: Dict[str, Any]) -> float:
+        """
+        估算岗位难度（0-100）
+
+        当没有预先计算的难度评估时使用
+        简化版评估逻辑
+        """
+        difficulty = 50  # 默认中等难度
+
+        # 技能要求数量
+        skills = candidate.get("skills", []) or []
+        skill_count = len(skills)
+        if skill_count >= 7:
+            difficulty += 15
+        elif skill_count >= 5:
+            difficulty += 10
+        elif skill_count >= 3:
+            difficulty += 5
+
+        # 经验要求
+        exp_required = candidate.get("experience_required", "") or ""
+        if "10年" in exp_required or "10+" in exp_required:
+            difficulty += 20
+        elif "7年" in exp_required or "5-10年" in exp_required:
+            difficulty += 15
+        elif "5年" in exp_required or "3-5年" in exp_required:
+            difficulty += 10
+        elif "3年" in exp_required:
+            difficulty += 5
+
+        # 学历要求
+        edu_required = candidate.get("education_required", "") or ""
+        if "博士" in edu_required:
+            difficulty += 15
+        elif "硕士" in edu_required:
+            difficulty += 10
+        elif "本科" in edu_required:
+            difficulty += 5
+
+        # 薪资水平（高薪往往对应高难度）
+        salary = parse_salary_range(candidate.get("salary_range", ""))
+        if salary:
+            avg_salary = (salary[0] + salary[1]) / 2
+            if avg_salary >= 40:
+                difficulty += 15
+            elif avg_salary >= 30:
+                difficulty += 10
+            elif avg_salary >= 20:
+                difficulty += 5
+
+        return min(difficulty, 100)
 
     def _title_similarity_score(self, target: str, title: str) -> float:
         """简单的标题相似度评分（字符重叠度）"""

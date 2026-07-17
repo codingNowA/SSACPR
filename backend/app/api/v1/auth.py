@@ -2,9 +2,12 @@
 用户认证接口
 """
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
+from sqlalchemy.orm import Session
 
 from app.core.auth import create_access_token, get_current_user
+from app.db import get_db
+from app.services.user_service import user_service
 
 router = APIRouter(prefix="/auth", tags=["认证"])
 
@@ -15,45 +18,45 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RegisterRequest(BaseModel):
+    """注册请求"""
+    username: str
+    password: str
+    email: EmailStr
+    real_name: str = ""
+
+
 class LoginResponse(BaseModel):
     """登录响应"""
     access_token: str
     token_type: str = "bearer"
     user_id: int
     username: str
+    role: str
+    real_name: str = ""
+
+
+class UserInfoResponse(BaseModel):
+    """用户信息响应"""
+    user_id: int
+    username: str
+    role: str
+    email: str = ""
+    real_name: str = ""
 
 
 @router.post("/login", response_model=LoginResponse, summary="用户登录")
-async def login(request: LoginRequest):
+async def login(request: LoginRequest, db: Session = Depends(get_db)):
     """
     用户登录接口
 
-    测试账号：
-    - 用户名: test_user
-    - 密码: test123
-
+    支持从数据库验证用户
     返回 JWT token，用于后续 API 调用
     """
-    # 这是一个简化的演示版本
-    # 生产环境需要从数据库验证用户名和密码（密码需要加密存储）
+    # 从数据库验证用户
+    user = user_service.authenticate(db, request.username, request.password)
 
-    # 演示用的测试账号
-    test_users = {
-        "test_user": {"password": "test123", "user_id": 1, "role": "user"},
-        "admin": {"password": "admin123", "user_id": 2, "role": "admin"},
-    }
-
-    # 验证用户名
-    if request.username not in test_users:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="用户名或密码错误",
-        )
-
-    user = test_users[request.username]
-
-    # 验证密码（实际应该对比加密后的密码）
-    if request.password != user["password"]:
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="用户名或密码错误",
@@ -61,15 +64,80 @@ async def login(request: LoginRequest):
 
     # 生成 JWT token
     token = create_access_token(
-        user_id=user["user_id"],
-        username=request.username,
+        user_id=user["id"],
+        username=user["username"],
         role=user["role"]
     )
 
     return LoginResponse(
         access_token=token,
-        user_id=user["user_id"],
-        username=request.username
+        user_id=user["id"],
+        username=user["username"],
+        role=user["role"],
+        real_name=user.get("real_name", "")
+    )
+
+
+@router.post("/register", response_model=LoginResponse, summary="用户注册")
+async def register(request: RegisterRequest, db: Session = Depends(get_db)):
+    """
+    用户注册接口
+
+    创建新用户账号（默认角色为student）
+    """
+    # 检查用户名是否已存在
+    existing_user = user_service.get_user_by_username(db, request.username)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="用户名已存在",
+        )
+
+    # 创建用户
+    user = user_service.create_user(
+        db=db,
+        username=request.username,
+        password=request.password,
+        email=request.email,
+        role="student",  # 新注册用户默认为学生
+        real_name=request.real_name
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="注册失败，请稍后重试",
+        )
+
+    # 生成 JWT token
+    token = create_access_token(
+        user_id=user["id"],
+        username=user["username"],
+        role=user["role"]
+    )
+
+    return LoginResponse(
+        access_token=token,
+        user_id=user["id"],
+        username=user["username"],
+        role=user["role"],
+        real_name=user.get("real_name", "")
+    )
+
+
+@router.get("/me", response_model=UserInfoResponse, summary="获取当前用户信息")
+async def get_current_user_info(current_user: dict = Depends(get_current_user)):
+    """
+    获取当前登录用户信息
+
+    需要在请求头中携带有效的 JWT token
+    """
+    return UserInfoResponse(
+        user_id=current_user.get("user_id", 0),
+        username=current_user.get("username", ""),
+        role=current_user.get("role", "student"),
+        email=current_user.get("email", ""),
+        real_name=current_user.get("real_name", "")
     )
 
 

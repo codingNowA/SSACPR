@@ -27,8 +27,11 @@ export const getJobDetail = async (jobId: number): Promise<Job> => {
 /**
  * 计算岗位匹配
  */
-export const calculateMatch = async (request: JobMatchRequest): Promise<JobMatchResponse> => {
-  return await apiClient.post('/api/v1/match/calculate', request);
+export const calculateMatch = async (request: JobMatchRequest & { use_local_model?: boolean }): Promise<JobMatchResponse> => {
+  const { use_local_model, ...matchRequest } = request;
+  return await apiClient.post('/api/v1/match/calculate', matchRequest, {
+    params: { use_local_model: use_local_model ?? true }
+  });
 };
 
 /**

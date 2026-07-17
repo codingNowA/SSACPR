@@ -166,9 +166,18 @@ class JobService:
         if row is None:
             return None
 
+        # 转换为字典并解析 job_profile
+        job_dict = dict(row)
+        if job_dict.get('job_profile') and isinstance(job_dict['job_profile'], str):
+            try:
+                job_dict['job_profile'] = json.loads(job_dict['job_profile'])
+            except json.JSONDecodeError:
+                logger.warning(f"Failed to parse job_profile for job {job_id}")
+                job_dict['job_profile'] = {}
+
         # 从 OpenSearch 获取 skills 和 company_type
         extra = await self._get_job_os_fields(job_id)
-        return JobResponse(**dict(row), **extra)
+        return JobResponse(**job_dict, **extra)
 
     async def list_jobs(
         self,
@@ -228,7 +237,18 @@ class JobService:
             *params,
         )
 
-        items = [JobResponse(**dict(r)) for r in rows]
+        # 解析 job_profile 字段
+        items = []
+        for r in rows:
+            job_dict = dict(r)
+            if job_dict.get('job_profile') and isinstance(job_dict['job_profile'], str):
+                try:
+                    job_dict['job_profile'] = json.loads(job_dict['job_profile'])
+                except json.JSONDecodeError:
+                    logger.warning(f"Failed to parse job_profile for job {job_dict.get('id')}")
+                    job_dict['job_profile'] = {}
+            items.append(JobResponse(**job_dict))
+
         total_pages = (total + page_size - 1) // page_size if total > 0 else 0
 
         return JobListResponse(
@@ -487,7 +507,20 @@ class JobService:
                 "job_profile, status, source, created_at FROM jobs WHERE id = ANY($1)",
                 job_ids,
             )
-        return [JobResponse(**dict(r)) for r in rows]
+
+        # 解析 job_profile 字段
+        jobs = []
+        for r in rows:
+            job_dict = dict(r)
+            if job_dict.get('job_profile') and isinstance(job_dict['job_profile'], str):
+                try:
+                    job_dict['job_profile'] = json.loads(job_dict['job_profile'])
+                except json.JSONDecodeError:
+                    logger.warning(f"Failed to parse job_profile for job {job_dict.get('id')}")
+                    job_dict['job_profile'] = {}
+            jobs.append(JobResponse(**job_dict))
+
+        return jobs
 
 
 # 单例

@@ -8,6 +8,7 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 
 from app.api.deps import validate_resume_file, get_user_id
+from app.core.auth import get_current_user
 from app.schemas.resume import (
     ResumeUploadResponse,
     ResumeParseResponse,
@@ -43,7 +44,7 @@ router = APIRouter(prefix="/resume", tags=["简历管理"])
 @router.post("/upload", response_model=ApiResponse[ResumeUploadResponse])
 async def upload_resume(
     file: UploadFile = Depends(validate_resume_file),
-    user_id: Optional[int] = Depends(get_user_id),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     上传简历文件
@@ -61,12 +62,16 @@ async def upload_resume(
 
     Args:
         file: 简历文件
-        user_id: 用户 ID（可选）
+        current_user: 当前登录用户（从JWT token中提取）
 
     Returns:
         上传结果（含 resume_id）
     """
     try:
+        # 从JWT token中获取用户ID
+        user_id = current_user.get("user_id")
+        logger.info(f"收到上传请求: user_id={user_id}, username={current_user.get('username')}, file={file.filename}")
+
         # 1. 保存文件
         file_path, file_type = await file_handler.save_resume(file, user_id)
 
@@ -84,9 +89,13 @@ async def upload_resume(
                 structured_dict = structured_data.dict()
 
                 # 写入数据库
-                uid = user_id or 1  # 开发阶段默认用户
+                logger.info(f"准备写入数据库: user_id={user_id}, type={type(user_id)}")
+                if not user_id:
+                    logger.error(f"user_id为空或None: {user_id}")
+                    raise ValueError("user_id 不能为空")
+
                 resume_id = await save_parsed_data_to_db(
-                    user_id=uid,
+                    user_id=user_id,
                     file_path=file_path,
                     file_type=file_type,
                     structured_data=structured_dict,

@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Space } from 'antd';
+import { Layout, Menu, Space, Dropdown, Avatar, message } from 'antd';
 import {
   HomeOutlined,
   FileTextOutlined,
@@ -11,16 +11,49 @@ import {
   SettingOutlined,
   UserOutlined,
   FileSearchOutlined,
+  LogoutOutlined,
+  BankOutlined,
+  CommentOutlined,
 } from '@ant-design/icons';
-import { useAppStore } from '../../store';
+import type { MenuProps } from 'antd';
+import { useStore } from '../../store';
 
 const { Header, Content, Footer } = Layout;
 
 const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentResumeId } = useAppStore();
+  const { user, currentResumeId, logout } = useStore();
 
+  const handleLogout = () => {
+    logout();
+    message.success('已登出');
+    navigate('/login');
+  };
+
+  const userMenuItems: MenuProps['items'] = [
+    {
+      key: 'username',
+      label: user?.realName || user?.username || '用户',
+      disabled: true,
+    },
+    {
+      key: 'role',
+      label: `角色: ${user?.role === 'admin' ? '管理员' : '用户'}`,
+      disabled: true,
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: '退出登录',
+      onClick: handleLogout,
+    },
+  ];
+
+  // 根据用户角色动态生成菜单
   const menuItems = [
     {
       key: '/',
@@ -39,11 +72,22 @@ const MainLayout: React.FC = () => {
       label: '诊断报告',
     }] : []),
     {
+      key: '/job/list',
+      icon: <BankOutlined />,
+      label: '岗位中心',
+    },
+    {
+      key: '/interview/mock',
+      icon: <CommentOutlined />,
+      label: '模拟面试',
+    },
+    {
       key: '/analytics',
       icon: <BarChartOutlined />,
       label: '数据分析',
     },
-    {
+    // 只有管理员才显示管理菜单
+    ...(user?.role === 'admin' ? [{
       key: 'admin',
       icon: <SettingOutlined />,
       label: '管理',
@@ -61,12 +105,7 @@ const MainLayout: React.FC = () => {
           label: '日志查询',
         },
       ],
-    },
-    {
-      key: '/about',
-      icon: <UserOutlined />,
-      label: '关于',
-    },
+    }] : []),
   ];
 
   return (
@@ -75,27 +114,37 @@ const MainLayout: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         background: '#001529',
-        padding: '0 50px'
+        padding: '0 50px',
+        justifyContent: 'space-between'
       }}>
-        <div style={{
-          color: 'white',
-          fontSize: '20px',
-          fontWeight: 'bold',
-          marginRight: '50px',
-          cursor: 'pointer'
-        }}
-        onClick={() => navigate('/')}
-        >
-          职业规划智能体系统
+        <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+          <div style={{
+            color: 'white',
+            fontSize: '20px',
+            fontWeight: 'bold',
+            marginRight: '50px',
+            cursor: 'pointer'
+          }}
+          onClick={() => navigate('/')}
+          >
+            职业规划智能体系统
+          </div>
+          <Menu
+            theme="dark"
+            mode="horizontal"
+            selectedKeys={[location.pathname]}
+            items={menuItems}
+            onClick={({ key }) => navigate(key)}
+            style={{ flex: 1, minWidth: 0, border: 'none' }}
+          />
         </div>
-        <Menu
-          theme="dark"
-          mode="horizontal"
-          selectedKeys={[location.pathname]}
-          items={menuItems}
-          onClick={({ key }) => navigate(key)}
-          style={{ flex: 1, minWidth: 0 }}
-        />
+
+        <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
+            <span style={{ color: 'white' }}>{user?.realName || user?.username}</span>
+          </div>
+        </Dropdown>
       </Header>
       <Content style={{ padding: '0', background: '#f0f2f5', minHeight: 'calc(100vh - 134px)' }}>
         <Outlet />

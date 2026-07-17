@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.core.auth import require_admin
 from app.services.job_admin_service import JobAdminService
 from app.services.log_service import LogService
 from app.models.job import (
@@ -22,16 +23,17 @@ router = APIRouter(prefix="/api/v1/admin/jobs", tags=["岗位管理"])
 def create_job(
     data: JobCreate,
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_admin)
 ):
-    """1. 创建岗位"""
+    """1. 创建岗位（需要管理员权限）"""
     service = JobAdminService(db)
     result = service.create_job(data)
 
     # 写日志
     log_service = LogService(db)
     log_service.create_log(
-        user_id=1,
+        user_id=current_user.get("user_id", 1),
         action="CREATE",
         module="job",
         details={"job_id": result.id, "title": result.title},
@@ -76,9 +78,10 @@ def update_job(
     job_id: int,
     data: JobUpdate,
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_admin)
 ):
-    """4. 更新岗位"""
+    """4. 更新岗位（需要管理员权限）"""
     service = JobAdminService(db)
     result = service.update_job(job_id, data)
     if not result:
@@ -87,7 +90,7 @@ def update_job(
     # 写日志
     log_service = LogService(db)
     log_service.create_log(
-        user_id=1,
+        user_id=current_user.get("user_id", 1),
         action="UPDATE",
         module="job",
         details={"job_id": result.id, "title": result.title},
@@ -101,9 +104,10 @@ def update_job(
 def delete_job(
     job_id: int,
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_admin)
 ):
-    """5. 删除岗位"""
+    """5. 删除岗位（需要管理员权限）"""
     # 先获取要删除的岗位信息（用于日志）
     job_service = JobAdminService(db)
     job = job_service.get_job_by_id(job_id)

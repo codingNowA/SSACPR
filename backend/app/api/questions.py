@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.core.auth import require_admin
 from app.services.question_service import QuestionService
 from app.services.log_service import LogService
 from app.models.question import (
@@ -22,16 +23,17 @@ router = APIRouter(prefix="/api/v1/admin/questions", tags=["题库管理"])
 def create_question(
     data: QuestionCreate,
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_admin)
 ):
-    """1. 创建题目"""
+    """1. 创建题目（需要管理员权限）"""
     service = QuestionService(db)
     result = service.create_question(data)
 
     # 写日志
     log_service = LogService(db)
     log_service.create_log(
-        user_id=1,
+        user_id=current_user.get("user_id", 1),
         action="CREATE",
         module="question",
         details={"question_id": result.id, "category": result.category},
@@ -73,9 +75,10 @@ def update_question(
     question_id: int,
     data: QuestionUpdate,
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_admin)
 ):
-    """4. 更新题目"""
+    """4. 更新题目（需要管理员权限）"""
     service = QuestionService(db)
     result = service.update_question(question_id, data)
     if not result:
@@ -84,7 +87,7 @@ def update_question(
     # 写日志
     log_service = LogService(db)
     log_service.create_log(
-        user_id=1,
+        user_id=current_user.get("user_id", 1),
         action="UPDATE",
         module="question",
         details={"question_id": result.id, "category": result.category},
@@ -98,9 +101,10 @@ def update_question(
 def delete_question(
     question_id: int,
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_admin)
 ):
-    """5. 删除题目"""
+    """5. 删除题目（需要管理员权限）"""
     # 先获取要删除的题目信息（用于日志）
     question_service = QuestionService(db)
     question = question_service.get_question_by_id(question_id)
@@ -113,7 +117,7 @@ def delete_question(
     # 写日志
     log_service = LogService(db)
     log_service.create_log(
-        user_id=1,
+        user_id=current_user.get("user_id", 1),
         action="DELETE",
         module="question",
         details={"question_id": question_id, "category": question.category},

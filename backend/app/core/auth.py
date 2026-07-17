@@ -102,3 +102,17 @@ def create_access_token(user_id: int, username: str, role: str = "user") -> str:
         "exp": expire,
     }
     return jwt.encode(payload, secret, algorithm=JWT_ALGORITHM)
+
+
+async def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
+    """
+    FastAPI 依赖注入：要求管理员权限
+
+    用于保护管理员接口
+    """
+    if current_user.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="需要管理员权限",
+        )
+    return current_user
