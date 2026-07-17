@@ -62,14 +62,16 @@ export const getResumeData = async (resumeId: number): Promise<ResumeData> => {
 export const createResumeVersion = async (
   resumeId: number,
   versionName: string,
-  scores?: any,
-  parsedData?: any
+  diagnosisData?: any,  // 包含 scores、optimization、summary
+  parsedData?: any      // 简历内容数据
 ): Promise<any> => {
   const response = await apiClient.post(
     `/api/v1/resume/${resumeId}/snapshots`,
     {
       version_name: versionName,
-      scores: scores,
+      scores: diagnosisData?.scores,
+      optimization: diagnosisData?.optimization,
+      summary: diagnosisData?.summary,
       parsed_data: parsedData,
     }
   );

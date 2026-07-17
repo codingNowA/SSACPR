@@ -10,7 +10,7 @@ help:
 	@echo "  make install        - 安装依赖（Python + Node.js）"
 	@echo "  make dev            - 启动开发环境"
 	@echo "  make up             - 启动所有 Docker 服务"
-	@echo "  make down           - 停止所有服务"
+	@echo "  make restart        - 重启所有服务（重新构建）"
 	@echo "  make logs           - 查看服务日志"
 	@echo "  make clean          - 清理所有容器和数据卷"
 	@echo "  make test           - 运行测试"
@@ -147,9 +147,16 @@ shell-redis:
 status:
 	$(COMPOSE) ps
 
-# 重启服务
+# 重启服务（重新构建并启动，等同于 down + up）
 restart:
-	$(COMPOSE) restart
+	@echo "===== 重启 SSACPR 系统 ====="
+	@echo "[1/3] 停止服务..."
+	$(COMPOSE) down
+	@echo "[2/3] 重新构建并启动..."
+	$(COMPOSE) up -d --build
+	@echo "[3/3] 等待服务就绪..."
+	@ping 127.0.0.1 -n 16 >nul 2>&1 || sleep 15 2>/dev/null || echo ""
+	@echo "===== 重启完成 ====="
 
 # 查看后端日志
 logs-backend:

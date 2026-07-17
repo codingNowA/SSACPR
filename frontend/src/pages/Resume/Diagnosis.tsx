@@ -130,7 +130,11 @@ const ResumeDiagnosis: React.FC = () => {
         resumeData?.basic_info?.job_intention
       );
       setDiagnosisResult(result);
-      message.success({ content: '优化完成！', key: 'optimize' });
+      message.success({
+        content: '优化完成！请及时保存版本，退出该页面后优化结果消失！',
+        key: 'optimize',
+        duration: 8  // 延长显示时间到8秒
+      });
     } catch (error: any) {
       const errorMsg = error?.message || error?.toString() || '优化失败';
       message.error({ content: errorMsg, key: 'optimize' });
@@ -156,11 +160,19 @@ const ResumeDiagnosis: React.FC = () => {
 
     try {
       message.loading({ content: '正在保存版本...', key: 'save', duration: 0 });
+
+      // 准备保存的数据：包含评分、优化建议和当前简历内容
+      const versionData = {
+        scores: diagnosisResult.scores,
+        optimization: diagnosisResult.optimization,
+        summary: diagnosisResult.summary,
+      };
+
       await createResumeVersion(
         parseInt(resumeId!),
         versionName,
-        diagnosisResult.scores,
-        diagnosisResult.optimization
+        versionData,  // 保存完整的诊断结果（包含scores、optimization、summary）
+        resumeData     // 保存当前的简历数据
       );
       message.success({ content: '版本保存成功！', key: 'save' });
       setSaveModalVisible(false);

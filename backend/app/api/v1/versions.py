@@ -29,7 +29,8 @@ async def create_resume_snapshot(resume_id: int, _user: dict = Depends(get_curre
         "version_name": "版本名称",
         "parsed_data": {...},  // 可选，如果提供则使用这个数据，否则使用数据库中的当前数据
         "scores": {...},  // 可选，评分数据
-        "optimization": {...}  // 可选，优化建议数据
+        "optimization": {...},  // 可选，优化建议数据
+        "summary": "..."  // 可选，简历摘要
     }
     """
     try:
@@ -39,6 +40,7 @@ async def create_resume_snapshot(resume_id: int, _user: dict = Depends(get_curre
 
         scores = version_data.get("scores")
         optimization = version_data.get("optimization")
+        summary = version_data.get("summary")
         parsed_data_override = version_data.get("parsed_data")
 
         pool = await get_db_pool()
@@ -56,6 +58,14 @@ async def create_resume_snapshot(resume_id: int, _user: dict = Depends(get_curre
             # 如果提供了新的 parsed_data，使用它；否则使用数据库中的
             parsed_data_to_save = json.dumps(parsed_data_override) if parsed_data_override else resume["parsed_data"]
 
+            # 合并诊断数据到 scores 字段（包含评分、摘要等）
+            scores_data = None
+            if scores or summary:
+                scores_data = {
+                    **(scores if isinstance(scores, dict) else {}),
+                    "summary": summary
+                }
+
             # 保存版本
             version = await conn.fetchrow(
                 """
@@ -67,7 +77,7 @@ async def create_resume_snapshot(resume_id: int, _user: dict = Depends(get_curre
                 resume_id,
                 version_name,
                 parsed_data_to_save,
-                json.dumps(scores) if scores else None,
+                json.dumps(scores_data) if scores_data else None,
                 json.dumps(optimization) if optimization else None,
             )
 
@@ -398,29 +408,29 @@ async def download_snapshot_pdf(version_id: int, _user: dict = Depends(get_curre
             if not version:
                 raise HTTPException(status_code=404, detail="版本不存在")
 
-            # 检查是否有诊断结果
-            scores = version["scores"]
-            if not scores:
-                raise HTTPException(
-                    status_code=400,
-                    detail="该版本尚未诊断，请先进行诊断后再下载PDF"
-                )
-
             # 解析数据
             parsed_data = version["parsed_data"]
             if isinstance(parsed_data, str):
                 parsed_data = json.loads(parsed_data)
 
+            scores = version["scores"]
             if isinstance(scores, str):
                 scores = json.loads(scores)
 
             version_name = version["version_name"]
 
-            # 生成包含诊断结果的PDF
+            # 生成PDF（根据是否有诊断结果选择不同的生成方式）
             try:
-                pdf_bytes = pdf_generator.generate_resume_pdf_with_diagnosis(
-                    parsed_data, scores, version_name
-                )
+                if scores:
+                    # 有诊断结果，生成包含诊断的PDF
+                    pdf_bytes = pdf_generator.generate_resume_pdf_with_diagnosis(
+                        parsed_data, scores, version_name
+                    )
+                else:
+                    # 没有诊断结果，只生成简历内容的PDF
+                    pdf_bytes = pdf_generator.generate_resume_pdf(
+                        parsed_data, version_name
+                    )
             except Exception as e:
                 logger.error(f"生成PDF失败: {e}", exc_info=True)
                 raise HTTPException(status_code=500, detail=f"生成PDF失败: {str(e)}")
