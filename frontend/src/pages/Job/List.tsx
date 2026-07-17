@@ -71,9 +71,10 @@ const JobList: React.FC = () => {
 
       const response = await apiClient.get('/api/v1/job/list', { params });
 
-      if (response.data?.code === 200 && response.data?.data) {
-        setJobs(response.data.data.items || []);
-        setTotal(response.data.data.total || 0);
+      // API 客户端的响应拦截器已经解包了 {code, data}，直接使用响应数据
+      if (response && typeof response === 'object') {
+        setJobs(response.items || []);
+        setTotal(response.total || 0);
       } else {
         message.error('加载岗位列表失败');
       }

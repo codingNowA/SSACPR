@@ -81,8 +81,9 @@ const MockInterview: React.FC = () => {
         answer: answer.trim(),
       });
 
-      if (response.data?.code === 200 && response.data?.data?.feedback) {
-        setFeedback(response.data.data.feedback);
+      // API 客户端的响应拦截器已经解包了 {code, data}，直接使用响应数据
+      if (response?.feedback) {
+        setFeedback(response.feedback);
         message.success('评估完成');
       } else {
         message.error('评估失败，请重试');
