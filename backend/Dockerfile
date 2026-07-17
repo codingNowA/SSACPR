@@ -26,6 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     poppler-utils \
     libgomp1 \
     curl \
+    fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/*
 
 # 复制依赖文件

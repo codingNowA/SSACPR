@@ -16,7 +16,6 @@ import {
   Row,
   Col,
   Tag,
-  DatePicker,
   Select,
   Modal,
 } from 'antd';
@@ -29,9 +28,8 @@ import {
 } from '@ant-design/icons';
 import apiClient from '../../services/api';
 import { createResumeVersion } from '../../services/resume';
-import dayjs from 'dayjs';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
 
@@ -60,15 +58,28 @@ const ResumeEdit: React.FC = () => {
 
       setResumeData(data);
 
+      // 兼容两种数据格式：扁平化 (data.name) 和嵌套 (data.basic_info.name)
+      const basicInfo = data.basic_info || {};
+
+      // 处理技能：兼容字符串数组和 SkillTag 对象数组
+      let skillsStr = '';
+      if (data.skills && Array.isArray(data.skills)) {
+        skillsStr = data.skills.map((s: any) => {
+          if (typeof s === 'string') return s;
+          if (s && s.name) return s.name;
+          return '';
+        }).filter(Boolean).join(', ');
+      }
+
       // 填充表单
       form.setFieldsValue({
-        name: data.name,
-        phone: data.phone,
-        email: data.email,
+        name: data.name || basicInfo.name,
+        phone: data.phone || basicInfo.phone,
+        email: data.email || basicInfo.email,
         education: data.education || [],
         work_experience: data.work_experience || [],
         project_experience: data.project_experience || [],
-        skills: data.skills?.join(', ') || '',
+        skills: skillsStr,
         self_evaluation: data.self_evaluation,
       });
     } catch (error: any) {
@@ -86,15 +97,34 @@ const ResumeEdit: React.FC = () => {
       // 转换技能为数组
       const skills = values.skills ? values.skills.split(/[,，、]/).map((s: string) => s.trim()).filter(Boolean) : [];
 
+      // 转换技能为 SkillTag 格式（后端 Pydantic 模型要求）
+      const skillTags = skills.map((skill: string) => ({
+        name: skill,
+        category: null,
+        level: null,
+      }));
+
+      // 构造标准的 parsed_data 格式（嵌套结构）
       const structuredData = {
-        ...values,
-        skills,
+        basic_info: {
+          name: values.name,
+          phone: values.phone,
+          email: values.email,
+        },
+        education: values.education || [],
+        work_experience: values.work_experience || [],
+        project_experience: values.project_experience || [],
+        skills: skillTags,
+        self_evaluation: values.self_evaluation,
       };
 
       // 更新简历数据
       await apiClient.put(`/api/v1/resume/${resumeId}/structured`, structuredData);
 
-      message.success('简历保存成功！');
+      // 更新本地 resumeData 以保持一致
+      setResumeData(structuredData);
+
+      // 保存成功后弹出版本命名弹窗
       setSaveModalVisible(true);
     } catch (error: any) {
       if (error?.errorFields) {
@@ -116,9 +146,17 @@ const ResumeEdit: React.FC = () => {
       const values = form.getFieldsValue();
       const skills = values.skills ? values.skills.split(/[,，、]/).map((s: string) => s.trim()).filter(Boolean) : [];
 
-      // 构造符合 parsed_data 格式的数据结构
+      // 转换技能为 SkillTag 格式
+      const skillTags = skills.map((skill: string) => ({
+        name: skill,
+        category: null,
+        level: null,
+      }));
+
+      // 基于原始 resumeData 构造完整的 parsed_data，确保不丢失任何字段
       const parsedData = {
         basic_info: {
+          ...(resumeData?.basic_info || {}),
           name: values.name,
           phone: values.phone,
           email: values.email,
@@ -126,7 +164,7 @@ const ResumeEdit: React.FC = () => {
         education: values.education || [],
         work_experience: values.work_experience || [],
         project_experience: values.project_experience || [],
-        skills: skills,
+        skills: skillTags,
         self_evaluation: values.self_evaluation,
       };
 

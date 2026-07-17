@@ -88,8 +88,8 @@ const JobInterpret: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await apiClient.get(`/api/v1/job-analysis/interpret/${jobId}`);
-      setAnalysis(response.data);
+      const data = await apiClient.get(`/api/v1/job-analysis/interpret/${jobId}`);
+      setAnalysis(data);
     } catch (error: any) {
       message.error(error || '加载岗位解读失败');
     } finally {

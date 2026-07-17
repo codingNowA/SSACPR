@@ -318,6 +318,7 @@ async def update_resume_structured(
     resume_id: int,
     structured_data: dict,
     current_user: dict = Depends(get_current_user),
+    version_id: int = None,
 ):
     """
     更新简历的结构化数据
@@ -326,6 +327,7 @@ async def update_resume_structured(
         resume_id: 简历ID
         structured_data: 更新后的结构化数据
         current_user: 当前登录用户
+        version_id: 可选，版本ID，如果提供则同时更新 current_version_id
 
     Returns:
         更新结果
@@ -354,16 +356,30 @@ async def update_resume_structured(
                 detail="无权修改此简历"
             )
 
-        # 更新数据
-        update_query = text("""
-            UPDATE resumes
-            SET parsed_data = :parsed_data, updated_at = NOW()
-            WHERE id = :resume_id
-        """)
-        db.execute(update_query, {
-            "resume_id": resume_id,
-            "parsed_data": json.dumps(structured_data, ensure_ascii=False)
-        })
+        # 更新数据，同时更新 current_version_id（如果提供）
+        if version_id is not None:
+            update_query = text("""
+                UPDATE resumes
+                SET parsed_data = :parsed_data,
+                    current_version_id = :version_id,
+                    updated_at = NOW()
+                WHERE id = :resume_id
+            """)
+            db.execute(update_query, {
+                "resume_id": resume_id,
+                "parsed_data": json.dumps(structured_data, ensure_ascii=False),
+                "version_id": version_id
+            })
+        else:
+            update_query = text("""
+                UPDATE resumes
+                SET parsed_data = :parsed_data, updated_at = NOW()
+                WHERE id = :resume_id
+            """)
+            db.execute(update_query, {
+                "resume_id": resume_id,
+                "parsed_data": json.dumps(structured_data, ensure_ascii=False)
+            })
         db.commit()
 
         return {"message": "更新成功"}

@@ -254,7 +254,12 @@ class LocalMatchService:
 
     def _score_education(self, profile: ResumeProfile, job: Dict[str, Any]) -> float:
         """学历匹配评分"""
-        resume_edu = profile.education or "本科"
+        # 从教育经历列表中提取最高学历
+        resume_edu = "本科"  # 默认值
+        if profile.education and len(profile.education) > 0:
+            # 取第一个教育经历的学历
+            resume_edu = profile.education[0].degree or "本科"
+
         job_edu_text = job.get("education", "") or job.get("requirements", "")
         job_edu = self._extract_education_requirement(job_edu_text)
 
@@ -282,11 +287,8 @@ class LocalMatchService:
                 return 100.0
             return 30.0
 
-        # 否则使用简历中的期望地点
-        if profile.target_location and job_location:
-            if job_location in profile.target_location or profile.target_location in job_location:
-                return 100.0
-            return 50.0
+        # 如果没有偏好设置，默认返回中等分数
+        return 70.0
 
         return 50.0  # 无偏好，给中间分
 
@@ -456,15 +458,102 @@ class LocalMatchService:
 
     async def _load_resume_profile(self, resume_id: int) -> ResumeProfile:
         """加载简历画像"""
-        # 从数据库加载简历
-        # 这里需要调用job_service或直接查询数据库
-        # 简化实现，返回空profile
+        from app.services.job_service import get_db_pool
+        import json
+
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT parsed_data FROM resumes WHERE id = $1",
+                resume_id,
+            )
+
+        if row is None or row["parsed_data"] is None:
+            raise ValueError(f"简历 ID {resume_id} 不存在或未解析")
+
+        parsed = row["parsed_data"]
+        if isinstance(parsed, str):
+            parsed = json.loads(parsed)
+
+        return self._build_profile_from_parsed(parsed)
+
+    def _build_profile_from_parsed(self, parsed: Dict[str, Any]) -> ResumeProfile:
+        """将 parsed_data JSON 转换为 ResumeProfile"""
+        from app.schemas.job import EducationItem, ExperienceItem, ProjectItem
+
+        # 提取技能
+        skills = []
+        skills_data = parsed.get("skills", [])
+
+        if isinstance(skills_data, list):
+            for skill in skills_data:
+                if isinstance(skill, dict) and skill.get("name"):
+                    # SkillTag 格式: {"name": "Python", "level": "熟练"}
+                    skills.append(skill["name"])
+                elif isinstance(skill, str):
+                    # 字符串格式: "Python"
+                    skills.append(skill)
+
+        # 提取基本信息
+        basic_info = parsed.get("basic_info", {})
+        name = basic_info.get("name", "")
+        target_position = basic_info.get("job_intention", "")
+
+        # 提取教育经历
+        education_items = []
+        education_data = parsed.get("education", [])
+        for edu in education_data:
+            education_items.append(EducationItem(
+                school=edu.get("school"),
+                degree=edu.get("degree"),
+                major=edu.get("major"),
+                graduation_year=edu.get("end_date"),
+            ))
+
+        # 提取工作经历
+        experience_items = []
+        work_data = parsed.get("work_experience", [])
+        for work in work_data:
+            experience_items.append(ExperienceItem(
+                company=work.get("company"),
+                position=work.get("position"),
+                duration=f"{work.get('start_date', '')} - {work.get('end_date', '至今')}",
+                description=work.get("description"),
+            ))
+
+        # 提取项目经历
+        project_items = []
+        project_data = parsed.get("project_experience", [])
+        for proj in project_data:
+            project_items.append(ProjectItem(
+                name=proj.get("name"),
+                role=proj.get("role"),
+                description=proj.get("description"),
+                technologies=proj.get("tech_stack", []),
+            ))
+
+        # 构建摘要
+        summary = parsed.get("self_evaluation", "")
+        if not summary:
+            summary_parts = []
+            if name:
+                summary_parts.append(f"姓名: {name}")
+            if target_position:
+                summary_parts.append(f"求职意向: {target_position}")
+            if skills:
+                summary_parts.append(f"技能: {', '.join(skills[:5])}")
+            if work_data:
+                summary_parts.append(f"工作经历: {len(work_data)}段")
+            summary = "; ".join(summary_parts)
+
         return ResumeProfile(
-            skills=[],
-            target_position="",
-            target_location="",
-            education="本科",
-            summary="",
+            name=name,
+            skills=skills,
+            education=education_items,
+            experience=experience_items,
+            projects=project_items,
+            target_position=target_position,
+            summary=summary,
         )
 
     async def _get_candidate_jobs(
@@ -473,9 +562,19 @@ class LocalMatchService:
         request: JobMatchRequest
     ) -> List[Dict[str, Any]]:
         """获取候选岗位列表"""
-        # 从OpenSearch或PostgreSQL获取
-        # 简化实现，返回空列表
-        return []
+        # 构建搜索关键词
+        search_keywords = profile.skills[:15] if profile.skills else []
+        if profile.target_position:
+            search_keywords = [profile.target_position] + search_keywords
+
+        # 从 JobService 召回岗位
+        candidates = await self.job_service.recall_jobs(
+            keywords=search_keywords if search_keywords else None,
+            preferences=request.preferences,
+            size=100,
+        )
+
+        return candidates
 
 
 # 单例

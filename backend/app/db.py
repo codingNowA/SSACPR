@@ -15,8 +15,14 @@ POSTGRES_DB = os.getenv("POSTGRES_DB", "career_planning")
 # 构建数据库连接 URL
 DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
-# 创建引擎
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+# 创建引擎，增大连接池以支持并发请求
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    pool_size=20,          # 连接池大小从默认5增加到20
+    max_overflow=40,       # 额外溢出连接从默认10增加到40
+    pool_recycle=3600,     # 1小时后回收连接，防止连接过期
+)
 
 # 创建会话工厂
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

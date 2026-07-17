@@ -2,7 +2,7 @@
  * 简历诊断结果页面
  */
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Card,
   Row,
@@ -30,8 +30,10 @@ import {
   SaveOutlined,
   HistoryOutlined,
   EditOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import { getResumeData, diagnoseResume, optimizeResume, createResumeVersion } from '../../services/resume';
+import apiClient from '../../services/api';
 import { useAppStore } from '../../store';
 import { getScoreColor, getScoreLevel, formatDate } from '../../utils';
 
@@ -41,6 +43,7 @@ const { Panel } = Collapse;
 const ResumeDiagnosis: React.FC = () => {
   const { resumeId } = useParams<{ resumeId: string }>();
   const navigate = useNavigate();
+  const location = useLocation(); // 添加 location 来监听路由变化
   const { diagnosisResult, setDiagnosisResult, resumeData, setResumeData } = useAppStore();
 
   const [loading, setLoading] = useState(false);
@@ -49,33 +52,70 @@ const ResumeDiagnosis: React.FC = () => {
   const [versionName, setVersionName] = useState('');
 
   useEffect(() => {
-    // 仅当无结果或结果属于其他简历时才重新加载，避免切换 resumeId 后展示上一份简历的诊断（脏数据）
-    if (resumeId && (!diagnosisResult || diagnosisResult.resume_id !== parseInt(resumeId))) {
-      loadDiagnosisResult();
+    // 每次进入页面或路由变化时都加载数据并自动诊断
+    if (resumeId) {
+      loadAndDiagnose();
     }
-  }, [resumeId]);
+  }, [resumeId, location.key]); // 使用 location.key 监听导航变化
 
-  const loadDiagnosisResult = async () => {
+  const loadAndDiagnose = async () => {
     if (!resumeId) return;
 
     setLoading(true);
     try {
-      const [resumeDataRes, diagnosisRes] = await Promise.all([
-        getResumeData(parseInt(resumeId)),
-        diagnoseResume(parseInt(resumeId)),
-      ]);
+      console.log('开始加载诊断数据，resumeId:', resumeId);
 
-      // 如果parsed_data是字符串，解析它
-      if (resumeDataRes.parsed_data && typeof resumeDataRes.parsed_data === 'string') {
-        resumeDataRes.parsed_data = JSON.parse(resumeDataRes.parsed_data);
+      // 先加载简历数据
+      const resumeDataRes = await apiClient.get(`/api/v1/resume/${resumeId}/structured`);
+      console.log('简历数据响应:', resumeDataRes);
+
+      // 解析简历数据
+      let parsedData = resumeDataRes;
+      if (typeof parsedData === 'string') {
+        parsedData = JSON.parse(parsedData);
       }
+      console.log('解析后的简历数据:', parsedData);
+      console.log('parsedData 类型:', typeof parsedData);
+      console.log('parsedData.basic_info:', parsedData?.basic_info);
 
-      setResumeData(resumeDataRes.parsed_data || resumeDataRes);
-      setDiagnosisResult(diagnosisRes);
+      setResumeData(parsedData);
+
+      // 每次进入页面都自动触发诊断（覆盖旧的诊断结果）
+      console.log('自动触发诊断');
+      await handleDiagnose(false); // 不显示提示信息
+
     } catch (error: any) {
-      message.error(error || '加载失败');
+      console.error('加载失败:', error);
+      const errorMsg = error?.message || error?.toString() || '加载失败';
+      message.error(errorMsg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDiagnose = async (showMessage = true) => {
+    if (!resumeId) return;
+
+    const loadingKey = 'diagnose-' + Date.now();
+    try {
+      if (showMessage) {
+        message.loading({ content: '正在诊断...', key: loadingKey, duration: 0 });
+      }
+
+      // 触发新的诊断
+      const diagnosisRes = await diagnoseResume(parseInt(resumeId));
+      setDiagnosisResult(diagnosisRes);
+
+      if (showMessage) {
+        message.success({ content: '诊断完成！', key: loadingKey });
+      }
+      return diagnosisRes;
+    } catch (error: any) {
+      const errorMsg = error?.message || error?.toString() || '诊断失败';
+      if (showMessage) {
+        message.error({ content: errorMsg, key: loadingKey });
+      }
+      throw error;
     }
   };
 
@@ -84,14 +124,16 @@ const ResumeDiagnosis: React.FC = () => {
 
     setOptimizing(true);
     try {
+      message.loading({ content: '正在优化简历...', key: 'optimize', duration: 0 });
       const result = await optimizeResume(
         parseInt(resumeId),
         resumeData?.basic_info?.job_intention
       );
       setDiagnosisResult(result);
-      message.success('优化完成！');
+      message.success({ content: '优化完成！', key: 'optimize' });
     } catch (error: any) {
-      message.error(error || '优化失败');
+      const errorMsg = error?.message || error?.toString() || '优化失败';
+      message.error({ content: errorMsg, key: 'optimize' });
     } finally {
       setOptimizing(false);
     }
@@ -113,17 +155,19 @@ const ResumeDiagnosis: React.FC = () => {
     console.log('保存版本 - optimization:', diagnosisResult.optimization);
 
     try {
+      message.loading({ content: '正在保存版本...', key: 'save', duration: 0 });
       await createResumeVersion(
         parseInt(resumeId!),
         versionName,
         diagnosisResult.scores,
         diagnosisResult.optimization
       );
-      message.success('版本保存成功！');
+      message.success({ content: '版本保存成功！', key: 'save' });
       setSaveModalVisible(false);
       setVersionName('');
     } catch (error: any) {
-      message.error(error || '保存版本失败');
+      const errorMsg = error?.message || error?.toString() || '保存版本失败';
+      message.error({ content: errorMsg, key: 'save' });
     }
   };
 
@@ -145,8 +189,56 @@ const ResumeDiagnosis: React.FC = () => {
 
   if (!diagnosisResult) {
     return (
-      <div style={{ textAlign: 'center', padding: '100px 0' }}>
-        <Alert message="未找到诊断结果" type="warning" />
+      <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <Card>
+            <Row justify="space-between" align="middle">
+              <Col>
+                <Title level={2}>
+                  <TrophyOutlined /> 简历诊断
+                </Title>
+                <Text type="secondary">简历ID: {resumeId}</Text>
+              </Col>
+              <Col>
+                <Space>
+                  <Button icon={<HistoryOutlined />} onClick={handleViewVersions}>
+                    版本历史
+                  </Button>
+                  <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/resume/upload')}>
+                    返回上传
+                  </Button>
+                  <Button
+                    icon={<EditOutlined />}
+                    onClick={() => navigate(`/resume/edit/${resumeId}`)}
+                  >
+                    编辑简历
+                  </Button>
+                </Space>
+              </Col>
+            </Row>
+          </Card>
+
+          <Card>
+            <div style={{ textAlign: 'center', padding: '60px 0' }}>
+              <Alert
+                message="尚未诊断"
+                description="点击下方按钮对简历进行智能诊断分析"
+                type="info"
+                showIcon
+                style={{ marginBottom: 24 }}
+              />
+              <Button
+                type="primary"
+                size="large"
+                icon={<ThunderboltOutlined />}
+                onClick={handleDiagnose}
+                loading={loading}
+              >
+                开始诊断
+              </Button>
+            </div>
+          </Card>
+        </Space>
       </div>
     );
   }
@@ -199,11 +291,11 @@ const ResumeDiagnosis: React.FC = () => {
                 </Button>
                 <Button
                   type="primary"
-                  icon={<ReloadOutlined />}
-                  onClick={loadDiagnosisResult}
+                  icon={<ThunderboltOutlined />}
+                  onClick={handleDiagnose}
                   loading={loading}
                 >
-                  刷新
+                  重新诊断
                 </Button>
                 <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/resume/upload')}>
                   返回上传
@@ -225,6 +317,129 @@ const ResumeDiagnosis: React.FC = () => {
             </Col>
           </Row>
         </Card>
+
+        {/* 诊断前快照提示 */}
+        {diagnosisResult?.snapshot_id && diagnosisResult?.snapshot_name && (
+          <Alert
+            message="诊断前快照已自动保存"
+            description={
+              <Space>
+                <Text>
+                  系统已自动保存诊断前的简历版本：<Text strong>{diagnosisResult.snapshot_name}</Text>
+                </Text>
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<HistoryOutlined />}
+                  onClick={handleViewVersions}
+                >
+                  查看版本历史
+                </Button>
+              </Space>
+            }
+            type="info"
+            showIcon
+            closable
+          />
+        )}
+
+        {/* 简历内容展示 */}
+        {resumeData && (
+          <Card title={<Text strong><FileTextOutlined /> 简历内容</Text>}>
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              {/* 基本信息 */}
+              {resumeData.basic_info && (
+                <div>
+                  <Text strong style={{ fontSize: 16 }}>📋 基本信息</Text>
+                  <div style={{ marginTop: 8, marginLeft: 16 }}>
+                    <Row gutter={[16, 8]}>
+                      {resumeData.basic_info.name && <Col span={8}><Text>姓名：{resumeData.basic_info.name}</Text></Col>}
+                      {resumeData.basic_info.phone && <Col span={8}><Text>电话：{resumeData.basic_info.phone}</Text></Col>}
+                      {resumeData.basic_info.email && <Col span={8}><Text>邮箱：{resumeData.basic_info.email}</Text></Col>}
+                      {resumeData.basic_info.job_intention && <Col span={8}><Text>求职意向：{resumeData.basic_info.job_intention}</Text></Col>}
+                    </Row>
+                  </div>
+                </div>
+              )}
+
+              {/* 技能 */}
+              {resumeData.skills && resumeData.skills.length > 0 && (
+                <div>
+                  <Text strong style={{ fontSize: 16 }}>🛠 技能</Text>
+                  <div style={{ marginTop: 8, marginLeft: 16 }}>
+                    <Space wrap>
+                      {resumeData.skills.map((skill: any, idx: number) => (
+                        <Tag key={idx} color="blue">
+                          {typeof skill === 'string' ? skill : skill.name}
+                        </Tag>
+                      ))}
+                    </Space>
+                  </div>
+                </div>
+              )}
+
+              {/* 教育经历 */}
+              {resumeData.education && resumeData.education.length > 0 && (
+                <div>
+                  <Text strong style={{ fontSize: 16 }}>🎓 教育经历</Text>
+                  <div style={{ marginTop: 8, marginLeft: 16 }}>
+                    {resumeData.education.map((edu: any, idx: number) => (
+                      <div key={idx} style={{ marginBottom: 8 }}>
+                        <Text strong>{edu.school}</Text>
+                        {edu.major && <Text type="secondary"> · {edu.major}</Text>}
+                        {edu.degree && <Tag style={{ marginLeft: 8 }}>{edu.degree}</Tag>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 工作经历 */}
+              {resumeData.work_experience && resumeData.work_experience.length > 0 && (
+                <div>
+                  <Text strong style={{ fontSize: 16 }}>🏢 工作经历</Text>
+                  <div style={{ marginTop: 8, marginLeft: 16 }}>
+                    {resumeData.work_experience.map((work: any, idx: number) => (
+                      <div key={idx} style={{ marginBottom: 12 }}>
+                        <div>
+                          <Text strong>{work.company}</Text>
+                          {work.position && <Text type="secondary"> · {work.position}</Text>}
+                        </div>
+                        {work.description && (
+                          <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                            {work.description}
+                          </Text>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 项目经历 */}
+              {resumeData.project_experience && resumeData.project_experience.length > 0 && (
+                <div>
+                  <Text strong style={{ fontSize: 16 }}>📦 项目经历</Text>
+                  <div style={{ marginTop: 8, marginLeft: 16 }}>
+                    {resumeData.project_experience.map((project: any, idx: number) => (
+                      <div key={idx} style={{ marginBottom: 12 }}>
+                        <div>
+                          <Text strong>{project.name}</Text>
+                          {project.role && <Text type="secondary"> · {project.role}</Text>}
+                        </div>
+                        {project.description && (
+                          <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                            {project.description}
+                          </Text>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Space>
+          </Card>
+        )}
 
         {/* 评分概览 */}
         <Card title={<><TrophyOutlined /> 综合评分</>}>

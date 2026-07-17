@@ -105,7 +105,7 @@ const ResumeUpload: React.FC = () => {
 
       // 跳转到诊断结果页面
       setTimeout(() => {
-        navigate(`/resume/${resumeId}/diagnosis`);
+        navigate(`/resume/diagnosis/${resumeId}`);
       }, 1000);
 
     } catch (error: any) {

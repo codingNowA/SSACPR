@@ -458,8 +458,8 @@ class JobMatcher:
         """
         scores = []
 
-        # 1. 工作年限评分
-        work_years = profile.work_years or 0
+        # 1. 工作年限评分 - 从 experience 列表推算
+        work_years = len(profile.experience) if profile.experience else 0
         if work_years >= 10:
             years_score = 95
         elif work_years >= 7:
@@ -488,13 +488,16 @@ class JobMatcher:
             skill_score = 30
         scores.append(("skills", skill_score, 0.30))
 
-        # 3. 学历评分
-        education = (profile.education or "").lower()
-        if "博士" in education or "phd" in education:
+        # 3. 学历评分 - 从 education 列表获取
+        education_str = ""
+        if profile.education and len(profile.education) > 0:
+            education_str = (profile.education[0].degree or "").lower()
+
+        if "博士" in education_str or "phd" in education_str:
             edu_score = 95
-        elif "硕士" in education or "master" in education:
+        elif "硕士" in education_str or "master" in education_str:
             edu_score = 80
-        elif "本科" in education or "bachelor" in education:
+        elif "本科" in education_str or "bachelor" in education_str:
             edu_score = 60
         elif "大专" in education or "college" in education:
             edu_score = 40

@@ -40,6 +40,8 @@ openpyxl==3.1.5
 pillow==11.1.0
 # OCR 使用 pytesseract（轻量，依赖系统 tesseract）
 pytesseract==0.3.13
+# PDF 生成
+reportlab==4.0.7
 
 # ==================== 安全相关 ====================
 python-jose[cryptography]==3.3.0
