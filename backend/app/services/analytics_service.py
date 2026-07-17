@@ -141,16 +141,19 @@ class AnalyticsService:
         total_result = self.db.execute(total_query)
         total_count = total_result.scalar()
 
-        items = [
-            SalaryDistributionItem(
-                range=row[0] or "未知",
-                count=row[1],
-                percentage=round((row[1] / total_count) * 100, 2),
+        items = []
+        for row in rows:
+            group_name = row[0] or "未知"
+            count = row[1]
+            avg_salary = round(row[2], 1) if row[2] else 0
+
+            items.append(SalaryDistributionItem(
+                range=f"{group_name} ({avg_salary}K)" if avg_salary > 0 else group_name,
+                count=count,
+                percentage=round((count / total_count) * 100, 2),
                 cities=[row[0]] if dimension == "city" else None,
                 industries=[row[0]] if dimension == "industry" else None,
-            )
-            for row in rows
-        ]
+            ))
 
         return SalaryDistributionResponse(
             distributions=items,
@@ -169,28 +172,59 @@ class AnalyticsService:
             "education": "education_required"
         }.get(dimension, "location")
 
-        query = text(f"""
-            SELECT 
-                {dimension_field} as name,
-                COUNT(*) as count
-            FROM jobs
-            WHERE status = 'active' AND {dimension_field} IS NOT NULL
-            GROUP BY {dimension_field}
-            ORDER BY COUNT(*) DESC
-            LIMIT :limit
-        """)
+        if metric == "avg_salary":
+            # 计算平均薪资
+            query = text(f"""
+                WITH parsed_salary AS (
+                    SELECT
+                        {dimension_field} as name,
+                        CASE
+                            WHEN salary_range LIKE '%-%' THEN
+                                (CAST(SPLIT_PART(REPLACE(REPLACE(salary_range, 'k', ''), 'K', ''), '-', 1) AS FLOAT) +
+                                 CAST(SPLIT_PART(REPLACE(REPLACE(salary_range, 'k', ''), 'K', ''), '-', 2) AS FLOAT)) / 2
+                            ELSE 0
+                        END as avg_salary
+                    FROM jobs
+                    WHERE status = 'active' AND {dimension_field} IS NOT NULL
+                )
+                SELECT
+                    name,
+                    COUNT(*) as count,
+                    AVG(avg_salary) as avg_salary
+                FROM parsed_salary
+                GROUP BY name
+                ORDER BY avg_salary DESC
+                LIMIT :limit
+            """)
+        else:
+            # 计算岗位数量
+            query = text(f"""
+                SELECT
+                    {dimension_field} as name,
+                    COUNT(*) as count,
+                    NULL as avg_salary
+                FROM jobs
+                WHERE status = 'active' AND {dimension_field} IS NOT NULL
+                GROUP BY {dimension_field}
+                ORDER BY COUNT(*) DESC
+                LIMIT :limit
+            """)
 
         result = self.db.execute(query, {"limit": limit})
         rows = result.fetchall()
 
-        items = [
-            ComparisonItem(
-                name=row[0] or "未知",
-                value=float(row[1]),
-                count=row[1]
-            )
-            for row in rows
-        ]
+        items = []
+        for row in rows:
+            name = row[0] or "未知"
+            count = row[1]
+            avg_salary = round(row[2], 1) if row[2] else None
+
+            items.append(ComparisonItem(
+                name=name,
+                value=float(avg_salary if metric == "avg_salary" and avg_salary else count),
+                count=count,
+                avg_salary=avg_salary
+            ))
 
         return ComparisonResponse(
             items=items,

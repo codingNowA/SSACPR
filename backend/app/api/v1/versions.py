@@ -26,6 +26,7 @@ async def create_resume_snapshot(resume_id: int, _user: dict = Depends(get_curre
     请求体格式:
     {
         "version_name": "版本名称",
+        "parsed_data": {...},  // 可选，如果提供则使用这个数据，否则使用数据库中的当前数据
         "scores": {...},  // 可选，评分数据
         "optimization": {...}  // 可选，优化建议数据
     }
@@ -37,6 +38,7 @@ async def create_resume_snapshot(resume_id: int, _user: dict = Depends(get_curre
 
         scores = version_data.get("scores")
         optimization = version_data.get("optimization")
+        parsed_data_override = version_data.get("parsed_data")
 
         pool = await get_db_pool()
         async with pool.acquire() as conn:
@@ -50,6 +52,9 @@ async def create_resume_snapshot(resume_id: int, _user: dict = Depends(get_curre
 
             import json
 
+            # 如果提供了新的 parsed_data，使用它；否则使用数据库中的
+            parsed_data_to_save = json.dumps(parsed_data_override) if parsed_data_override else resume["parsed_data"]
+
             # 保存版本
             version = await conn.fetchrow(
                 """
@@ -60,7 +65,7 @@ async def create_resume_snapshot(resume_id: int, _user: dict = Depends(get_curre
                 """,
                 resume_id,
                 version_name,
-                resume["parsed_data"],
+                parsed_data_to_save,
                 json.dumps(scores) if scores else None,
                 json.dumps(optimization) if optimization else None,
             )

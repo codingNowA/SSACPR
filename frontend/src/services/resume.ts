@@ -63,14 +63,14 @@ export const createResumeVersion = async (
   resumeId: number,
   versionName: string,
   scores?: any,
-  optimization?: any
+  parsedData?: any
 ): Promise<any> => {
   const response = await apiClient.post(
     `/api/v1/resume/${resumeId}/snapshots`,
     {
       version_name: versionName,
       scores: scores,
-      optimization: optimization,
+      parsed_data: parsedData,
     }
   );
   return response;

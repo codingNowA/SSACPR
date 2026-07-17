@@ -29,6 +29,7 @@ import {
   ArrowLeftOutlined,
   SaveOutlined,
   HistoryOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import { getResumeData, diagnoseResume, optimizeResume, createResumeVersion } from '../../services/resume';
 import { useAppStore } from '../../store';
@@ -131,7 +132,7 @@ const ResumeDiagnosis: React.FC = () => {
   };
 
   const handleViewVersions = () => {
-    navigate(`/resume/${resumeId}/versions`);
+    navigate(`/resume/versions/${resumeId}`);
   };
 
   if (loading) {
@@ -206,6 +207,12 @@ const ResumeDiagnosis: React.FC = () => {
                 </Button>
                 <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/resume/upload')}>
                   返回上传
+                </Button>
+                <Button
+                  icon={<EditOutlined />}
+                  onClick={() => navigate(`/resume/edit/${resumeId}`)}
+                >
+                  编辑简历
                 </Button>
                 <Button
                   type="primary"

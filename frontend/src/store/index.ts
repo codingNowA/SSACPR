@@ -67,8 +67,18 @@ export const useStore = create<AppState>((set) => ({
     });
   },
 
-  currentResumeId: null,
-  setCurrentResumeId: (id) => set({ currentResumeId: id }),
+  currentResumeId: (() => {
+    const stored = localStorage.getItem('currentResumeId');
+    return stored ? parseInt(stored, 10) : null;
+  })(),
+  setCurrentResumeId: (id) => {
+    if (id !== null) {
+      localStorage.setItem('currentResumeId', id.toString());
+    } else {
+      localStorage.removeItem('currentResumeId');
+    }
+    set({ currentResumeId: id });
+  },
 
   resumeData: null,
   setResumeData: (data) => set({ resumeData: data }),

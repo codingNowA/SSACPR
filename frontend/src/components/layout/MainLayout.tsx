@@ -61,16 +61,25 @@ const MainLayout: React.FC = () => {
       label: '首页',
     },
     {
-      key: '/resume/upload',
+      key: 'resume',
       icon: <FileTextOutlined />,
-      label: '简历诊断',
+      label: '简历管理',
+      children: [
+        {
+          key: '/resume/list',
+          label: '我的简历',
+        },
+        {
+          key: '/resume/upload',
+          label: '上传简历',
+        },
+        // 只有当前有简历时才显示诊断报告
+        ...(currentResumeId ? [{
+          key: `/resume/diagnosis/${currentResumeId}`,
+          label: '当前简历诊断',
+        }] : []),
+      ],
     },
-    // 只有当前有简历时才显示诊断报告菜单
-    ...(currentResumeId ? [{
-      key: `/resume/${currentResumeId}/diagnosis`,
-      icon: <FileSearchOutlined />,
-      label: '诊断报告',
-    }] : []),
     {
       key: '/job/list',
       icon: <BankOutlined />,

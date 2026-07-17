@@ -130,6 +130,254 @@ async def upload_resume(
         )
 
 
+@router.get("/list")
+async def list_resumes(
+    page: int = 1,
+    page_size: int = 10,
+    status: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    获取当前用户的简历列表
+
+    Args:
+        page: 页码
+        page_size: 每页数量
+        status: 状态筛选 (draft/active/archived)
+        current_user: 当前登录用户
+
+    Returns:
+        简历列表
+    """
+    try:
+        from app.db import get_db
+        from sqlalchemy import text
+
+        user_id = current_user.get("user_id")
+        offset = (page - 1) * page_size
+
+        # 构建查询
+        db = next(get_db())
+
+        where_clause = "WHERE user_id = :user_id"
+        params = {"user_id": user_id, "limit": page_size, "offset": offset}
+
+        if status:
+            where_clause += " AND status = :status"
+            params["status"] = status
+
+        # 查询列表
+        query = text(f"""
+            SELECT id, user_id, file_path, file_type, version, status, created_at, updated_at
+            FROM resumes
+            {where_clause}
+            ORDER BY created_at DESC
+            LIMIT :limit OFFSET :offset
+        """)
+
+        result = db.execute(query, params)
+        rows = result.fetchall()
+
+        # 查询总数
+        count_query = text(f"SELECT COUNT(*) FROM resumes {where_clause}")
+        count_params = {"user_id": user_id}
+        if status:
+            count_params["status"] = status
+        total = db.execute(count_query, count_params).scalar()
+
+        items = [
+            {
+                "id": row[0],
+                "user_id": row[1],
+                "file_path": row[2],
+                "file_type": row[3],
+                "version": row[4],
+                "status": row[5],
+                "created_at": row[6].isoformat() if row[6] else None,
+                "updated_at": row[7].isoformat() if row[7] else None,
+            }
+            for row in rows
+        ]
+
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
+
+    except Exception as e:
+        logger.error(f"获取简历列表失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取简历列表失败: {str(e)}"
+        )
+
+
+@router.delete("/{resume_id}")
+async def delete_resume(
+    resume_id: int,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    删除简历
+
+    Args:
+        resume_id: 简历ID
+        current_user: 当前登录用户
+
+    Returns:
+        删除结果
+    """
+    try:
+        from app.db import get_db
+        from sqlalchemy import text
+
+        user_id = current_user.get("user_id")
+        db = next(get_db())
+
+        # 检查简历是否属于当前用户
+        check_query = text("SELECT user_id FROM resumes WHERE id = :resume_id")
+        result = db.execute(check_query, {"resume_id": resume_id}).fetchone()
+
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="简历不存在"
+            )
+
+        if result[0] != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权删除此简历"
+            )
+
+        # 删除简历（级联删除版本）
+        delete_query = text("DELETE FROM resumes WHERE id = :resume_id")
+        db.execute(delete_query, {"resume_id": resume_id})
+        db.commit()
+
+        return {"message": "删除成功"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"删除简历失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"删除简历失败: {str(e)}"
+        )
+
+
+@router.get("/{resume_id}/structured")
+async def get_resume_structured(
+    resume_id: int,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    获取简历的结构化数据
+
+    Args:
+        resume_id: 简历ID
+        current_user: 当前登录用户
+
+    Returns:
+        结构化简历数据
+    """
+    try:
+        from app.db import get_db
+        from sqlalchemy import text
+
+        user_id = current_user.get("user_id")
+        db = next(get_db())
+
+        # 检查权限并获取数据
+        query = text("SELECT parsed_data FROM resumes WHERE id = :resume_id AND user_id = :user_id")
+        result = db.execute(query, {"resume_id": resume_id, "user_id": user_id}).fetchone()
+
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="简历不存在或无权访问"
+            )
+
+        return result[0] or {}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取简历数据失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取简历数据失败: {str(e)}"
+        )
+
+
+@router.put("/{resume_id}/structured")
+async def update_resume_structured(
+    resume_id: int,
+    structured_data: dict,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    更新简历的结构化数据
+
+    Args:
+        resume_id: 简历ID
+        structured_data: 更新后的结构化数据
+        current_user: 当前登录用户
+
+    Returns:
+        更新结果
+    """
+    try:
+        from app.db import get_db
+        from sqlalchemy import text
+        import json
+
+        user_id = current_user.get("user_id")
+        db = next(get_db())
+
+        # 检查权限
+        check_query = text("SELECT user_id FROM resumes WHERE id = :resume_id")
+        result = db.execute(check_query, {"resume_id": resume_id}).fetchone()
+
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="简历不存在"
+            )
+
+        if result[0] != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权修改此简历"
+            )
+
+        # 更新数据
+        update_query = text("""
+            UPDATE resumes
+            SET parsed_data = :parsed_data, updated_at = NOW()
+            WHERE id = :resume_id
+        """)
+        db.execute(update_query, {
+            "resume_id": resume_id,
+            "parsed_data": json.dumps(structured_data, ensure_ascii=False)
+        })
+        db.commit()
+
+        return {"message": "更新成功"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"更新简历数据失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"更新简历数据失败: {str(e)}"
+        )
+
+
 @router.post("/parse", response_model=ApiResponse[ResumeParseResponse])
 async def parse_resume(
     file: UploadFile = Depends(validate_resume_file),

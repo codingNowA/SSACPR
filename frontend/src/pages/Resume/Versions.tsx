@@ -446,7 +446,7 @@ const ResumeVersions: React.FC = () => {
               </div>
               <Button
                 icon={<ArrowLeftOutlined />}
-                onClick={() => navigate(`/resume/${resumeId}/diagnosis`)}
+                onClick={() => navigate(`/resume/diagnosis/${resumeId}`)}
               >
                 返回诊断
               </Button>

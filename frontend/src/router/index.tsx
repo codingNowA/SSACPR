@@ -6,6 +6,8 @@ import MainLayout from '../components/layout/MainLayout';
 import Home from '../pages/Home';
 import Login from '../pages/Login';
 import ResumeUpload from '../pages/Resume/Upload';
+import ResumeList from '../pages/Resume/List';
+import ResumeEdit from '../pages/Resume/Edit';
 import ResumeDiagnosis from '../pages/Resume/Diagnosis';
 import ResumeVersions from '../pages/Resume/Versions';
 import JobMatch from '../pages/Job/Match';
@@ -66,15 +68,23 @@ export const router = createBrowserRouter([
         path: 'resume',
         children: [
           {
+            path: 'list',
+            element: <ResumeList />,
+          },
+          {
             path: 'upload',
             element: <ResumeUpload />,
           },
           {
-            path: ':resumeId/diagnosis',
+            path: 'edit/:resumeId',
+            element: <ResumeEdit />,
+          },
+          {
+            path: 'diagnosis/:resumeId',
             element: <ResumeDiagnosis />,
           },
           {
-            path: ':resumeId/versions',
+            path: 'versions/:resumeId',
             element: <ResumeVersions />,
           },
           {

@@ -48,6 +48,13 @@ const Analytics: React.FC = () => {
     loadAllData();
   }, []);
 
+  useEffect(() => {
+    // 当 dimension 或 metric 改变时，自动刷新对比数据
+    if (dimension && metric) {
+      handleComparisonChange();
+    }
+  }, [dimension, metric]);
+
   const loadAllData = async () => {
     setLoading(true);
     try {
@@ -60,7 +67,7 @@ const Analytics: React.FC = () => {
 
       setHotwords(hotwordsRes?.data?.hotwords || hotwordsRes?.hotwords || []);
       setSkillRank(skillRankRes?.data?.skills || skillRankRes?.skills || []);
-      setSalaryData(salaryRes?.data?.distribution || salaryRes?.distribution || []);
+      setSalaryData(salaryRes?.data?.distributions || salaryRes?.distributions || []);
       setComparisonData(comparisonRes?.data?.items || comparisonRes?.items || []);
     } catch (error: any) {
       message.error(error || '加载数据失败');
@@ -189,13 +196,13 @@ const Analytics: React.FC = () => {
                     <Col xs={24} sm={12} md={8} lg={6} key={index}>
                       <Card size="small" hoverable>
                         <Statistic
-                          title={item.dimension_value || item.city}
-                          value={item.avg_salary || item.average}
-                          suffix="K"
-                          valueStyle={{ color: '#3f8600' }}
+                          title={item.range}
+                          value={item.count}
+                          suffix="个岗位"
+                          valueStyle={{ color: '#3f8600', fontSize: '18px' }}
                         />
                         <Text type="secondary" style={{ fontSize: '12px' }}>
-                          岗位数: {item.count || 0}
+                          占比: {item.percentage}%
                         </Text>
                       </Card>
                     </Col>
