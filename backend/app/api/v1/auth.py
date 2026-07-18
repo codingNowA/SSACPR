@@ -156,3 +156,74 @@ async def test_auth(current_user: dict = Depends(get_current_user)):
         "message": "认证成功！",
         "user": current_user if current_user else "开发模式（未启用认证）"
     }
+
+
+class UserStatsResponse(BaseModel):
+    """用户统计信息响应"""
+    user_id: int
+    username: str
+    role: str
+    email: str = ""
+    real_name: str = ""
+    resume_count: int = 0
+    version_count: int = 0
+    match_count: int = 0
+    created_at: str = ""
+    last_login: str = ""
+
+
+@router.get("/stats", summary="获取用户统计信息")
+async def get_user_stats(
+    user_id: int = None,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    获取用户统计信息：简历数、版本数、匹配次数等
+    不传 user_id 时默认查当前登录用户
+    """
+    from app.services.job_service import get_db_pool
+
+    target_user_id = user_id or current_user.get("user_id", 1)
+
+    pool = await get_db_pool()
+
+    async with pool.acquire() as conn:
+        # 查用户基本信息
+        user_row = await conn.fetchrow(
+            "SELECT id, username, role, email, real_name, created_at, updated_at FROM users WHERE id = $1",
+            target_user_id
+        )
+
+        if not user_row:
+            raise HTTPException(status_code=404, detail="用户不存在")
+
+        # 简历数
+        resume_count = await conn.fetchval(
+            "SELECT COUNT(*) FROM resumes WHERE user_id = $1",
+            target_user_id
+        ) or 0
+
+        # 版本数
+        version_count = await conn.fetchval(
+            "SELECT COUNT(*) FROM resume_versions rv JOIN resumes r ON rv.resume_id = r.id WHERE r.user_id = $1",
+            target_user_id
+        ) or 0
+
+        # 匹配次数
+        match_count = await conn.fetchval(
+            "SELECT COUNT(*) FROM matches WHERE user_id = $1",
+            target_user_id
+        ) or 0
+
+    return UserStatsResponse(
+        user_id=user_row["id"],
+        username=user_row["username"],
+        role=user_row["role"],
+        email=user_row["email"] or "",
+        real_name=user_row["real_name"] or "",
+        resume_count=resume_count,
+        version_count=version_count,
+        match_count=match_count,
+        created_at=str(user_row["created_at"]) if user_row["created_at"] else "",
+        last_login=str(user_row["updated_at"]) if user_row["updated_at"] else "",
+    )

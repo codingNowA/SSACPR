@@ -13,8 +13,12 @@ import ResumeVersions from '../pages/Resume/Versions';
 import JobMatch from '../pages/Job/Match';
 import JobList from '../pages/Job/List';
 import JobInterpret from '../pages/Job/Interpret';
+import JobCenter from '../pages/Job/Center';
 import InterviewPrep from '../pages/Interview/Prep';
 import MockInterview from '../pages/Interview/Mock';
+import InterviewExam from '../pages/Interview/Exam';
+import QuestionBank from '../pages/Interview/QuestionBank';
+import UserProfile from '../pages/User/Profile';
 import Analytics from '../pages/Analytics';
 import JobAdmin from '../pages/Admin/JobAdmin';
 import QuestionAdmin from '../pages/Admin/QuestionAdmin';
@@ -101,6 +105,10 @@ export const router = createBrowserRouter([
             element: <JobList />,
           },
           {
+            path: 'center',
+            element: <JobCenter />,
+          },
+          {
             path: 'interpret/:jobId',
             element: <JobInterpret />,
           },
@@ -117,11 +125,28 @@ export const router = createBrowserRouter([
             path: 'mock',
             element: <MockInterview />,
           },
+          {
+            path: 'exam',
+            element: <InterviewExam />,
+          },
+          {
+            path: 'questions',
+            element: <QuestionBank />,
+          },
         ],
       },
       {
         path: 'analytics',
         element: <Analytics />,
+      },
+      {
+        path: 'user',
+        children: [
+          {
+            path: 'profile',
+            element: <UserProfile />,
+          },
+        ],
       },
       {
         path: 'admin',
