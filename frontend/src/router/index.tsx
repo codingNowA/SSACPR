@@ -4,6 +4,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import Home from '../pages/Home';
+import Login from '../pages/Login';
 import ResumeUpload from '../pages/Resume/Upload';
 import ResumeDiagnosis from '../pages/Resume/Diagnosis';
 import ResumeVersions from '../pages/Resume/Versions';
@@ -19,6 +20,10 @@ import QuestionAdmin from '../pages/Admin/QuestionAdmin';
 import LogQuery from '../pages/Admin/LogQuery';
 
 export const router = createBrowserRouter([
+  {
+    path: '/login',
+    element: <Login />,
+  },
   {
     path: '/',
     element: <MainLayout />,

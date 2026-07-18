@@ -51,30 +51,39 @@ const UserProfile: React.FC = () => {
 
   useEffect(() => {
     loadUserInfo();
-  }, [user]);
+  }, []);
 
   const loadUserInfo = async () => {
-    if (!user?.userId) return;
-
     setLoading(true);
     try {
+      // 从 localStorage 获取 token
+      const token = localStorage.getItem('token');
+      const headers: any = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+
       // 使用新的 /auth/stats 接口
       const statsResponse = await axios.get('/api/v1/auth/stats', {
-        params: { user_id: user.userId },
+        params: { user_id: user?.userId },
+        headers,
       });
       const statsData = statsResponse.data?.data || statsResponse.data;
       setStats(statsData);
 
       // 获取最近的简历版本
-      const versionsResponse = await axios.get('/api/v1/resume/versions', {
-        params: {
-          user_id: user.userId,
-          page: 1,
-          page_size: 5,
-        },
-      });
-      const versionsData = versionsResponse.data?.data || versionsResponse.data;
-      setRecentVersions(versionsData?.versions || versionsData?.items || []);
+      try {
+        const versionsResponse = await axios.get('/api/v1/resume/versions', {
+          params: {
+            user_id: user?.userId,
+            page: 1,
+            page_size: 5,
+          },
+          headers,
+        });
+        const versionsData = versionsResponse.data?.data || versionsResponse.data;
+        setRecentVersions(versionsData?.versions || versionsData?.items || []);
+      } catch {
+        // 版本查询失败不阻塞页面
+      }
     } catch (error) {
       console.error('加载用户信息失败:', error);
     } finally {

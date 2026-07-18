@@ -240,7 +240,6 @@ const JobAdmin: React.FC = () => {
                 >
                   <Button icon={<UploadOutlined />}>批量导入岗位</Button>
                 </Upload>
-                </Button>
               </Space>
             </Col>
           </Row>

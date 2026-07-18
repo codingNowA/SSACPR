@@ -90,25 +90,34 @@ const InterviewExam: React.FC = () => {
   const loadQuestions = async () => {
     setLoading(true);
     try {
-      // 随机获取10道题
-      const response = await axios.get('/api/v1/admin/questions', {
+      // 随机获取面试题目（后端已随机排序）
+      const response = await axios.get('/api/v1/interview-exam/questions', {
         params: {
-          page: 1,
-          page_size: 50,
+          count: TOTAL_QUESTIONS,
         },
       });
 
-      const allQuestions = response.data?.data?.items || response.data?.items || [];
+      const examQuestions = response.data?.questions || [];
 
-      if (allQuestions.length < TOTAL_QUESTIONS) {
-        message.warning(`题库题目不足，当前只有 ${allQuestions.length} 道题`);
+      if (examQuestions.length === 0) {
+        message.error('题库为空，请先添加面试题目');
+        setLoading(false);
+        return;
       }
 
-      // 随机选择10道题
-      const shuffled = allQuestions.sort(() => 0.5 - Math.random());
-      const selected = shuffled.slice(0, Math.min(TOTAL_QUESTIONS, allQuestions.length));
+      if (examQuestions.length < TOTAL_QUESTIONS) {
+        message.warning(`题库题目不足，当前只有 ${examQuestions.length} 道题`);
+      }
 
-      setQuestions(selected);
+      // 映射字段：API返回question字段，前端用content
+      const mapped = examQuestions.map((q: any) => ({
+        id: q.id,
+        content: q.question,
+        difficulty: q.difficulty,
+        category: q.category,
+      }));
+
+      setQuestions(mapped);
       setExamStarted(true);
       setStartTime(Date.now());
       setQuestionStartTime(Date.now());

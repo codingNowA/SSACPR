@@ -91,7 +91,7 @@ const JobCenter: React.FC = () => {
       if (location) params.location = location;
       if (sortBy) params.sort_by = sortBy;
 
-      const response = await axios.get('/api/v1/admin/jobs', { params });
+      const response = await axios.get('/api/v1/jobs/center', { params });
 
       const data = response.data?.data || response.data;
       setJobs(data?.items || []);

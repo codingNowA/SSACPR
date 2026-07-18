@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Space } from 'antd';
+import { Layout, Menu, Space, Button } from 'antd';
 import {
   HomeOutlined,
   FileTextOutlined,
@@ -22,7 +22,16 @@ const { Header, Content, Footer } = Layout;
 const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentResumeId } = useAppStore();
+  const { currentResumeId, user } = useAppStore();
+
+  // 未登录跳转到登录页
+  React.useEffect(() => {
+    if (!user) {
+      navigate('/login', { replace: true });
+    }
+  }, [user, navigate]);
+
+  const isAdmin = user?.role === 'admin';
 
   const menuItems = [
     {
@@ -77,25 +86,30 @@ const MainLayout: React.FC = () => {
       icon: <UserOutlined />,
       label: '个人中心',
     },
-    {
-      key: 'admin',
-      icon: <SettingOutlined />,
-      label: '管理',
-      children: [
-        {
-          key: '/admin/jobs',
-          label: '岗位管理',
-        },
-        {
-          key: '/admin/questions',
-          label: '题库管理',
-        },
-        {
-          key: '/admin/logs',
-          label: '日志查询',
-        },
-      ],
-    },
+    // 仅管理员可见管理菜单
+    ...(isAdmin
+      ? [
+          {
+            key: 'admin',
+            icon: <SettingOutlined />,
+            label: '管理',
+            children: [
+              {
+                key: '/admin/jobs',
+                label: '岗位管理',
+              },
+              {
+                key: '/admin/questions',
+                label: '题库管理',
+              },
+              {
+                key: '/admin/logs',
+                label: '日志查询',
+              },
+            ],
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -128,6 +142,23 @@ const MainLayout: React.FC = () => {
           onClick={({ key }) => navigate(key)}
           style={{ flex: 1, minWidth: 0 }}
         />
+        {user && (
+          <Space style={{ marginLeft: '16px' }}>
+            <span style={{ color: 'white', fontSize: '14px' }}>
+              {user.realName || user.username}
+            </span>
+            <Button
+              type="link"
+              style={{ color: 'white', padding: 0 }}
+              onClick={() => {
+                useAppStore.getState().logout();
+                navigate('/login', { replace: true });
+              }}
+            >
+              退出
+            </Button>
+          </Space>
+        )}
       </Header>
       <Content
         style={{
