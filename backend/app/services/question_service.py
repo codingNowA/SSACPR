@@ -197,3 +197,56 @@ class QuestionService:
         result = self.db.execute(query, {"id": question_id})
         self.db.commit()
         return result.rowcount > 0
+    # ==================== 获取随机题目（用于面试考试）====================
+    async def get_random_questions(
+        self,
+        count: int = 10,
+        category: Optional[str] = None,
+        difficulty: Optional[str] = None
+    ) -> List[dict]:
+        """
+        获取随机题目用于面试考试
+
+        Args:
+            count: 需要的题目数量
+            category: 题目分类筛选
+            difficulty: 难度筛选
+
+        Returns:
+            题目列表
+        """
+        where_clauses = []
+        params = {"count": count}
+
+        if category:
+            where_clauses.append("category = :category")
+            params["category"] = category
+        if difficulty:
+            where_clauses.append("difficulty = :difficulty")
+            params["difficulty"] = difficulty
+
+        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+
+        query = text(f"""
+            SELECT
+                id, category, difficulty, question, answer_points, related_skills
+            FROM interview_questions
+            WHERE {where_sql}
+            ORDER BY RANDOM()
+            LIMIT :count
+        """)
+
+        result = self.db.execute(query, params)
+        rows = result.fetchall()
+
+        return [
+            {
+                "id": row[0],
+                "category": row[1],
+                "difficulty": row[2],
+                "question": row[3],
+                "answer_points": row[4],
+                "related_skills": row[5] if row[5] else []
+            }
+            for row in rows
+        ]

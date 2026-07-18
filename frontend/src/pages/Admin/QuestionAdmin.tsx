@@ -24,8 +24,10 @@ import {
   DeleteOutlined,
   ReloadOutlined,
   SearchOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import { getQuestions, createQuestion, updateQuestion, deleteQuestion } from '../../services/question';
+import { Upload } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Title, Text } = Typography;
@@ -69,6 +71,30 @@ const QuestionAdmin: React.FC = () => {
   const handleSearch = (values: any) => {
     setPage(1);
     loadQuestions(values);
+  };
+
+  const handleBatchImportQuestions = async (file: any) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch('/api/v1/questions/batch-import', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok) {
+        message.success(data?.message || '导入成功');
+        loadQuestions();
+      } else {
+        message.error(data?.detail || '导入失败');
+      }
+    } catch (e: any) {
+      message.error('导入失败: ' + (e.message || '网络错误'));
+    }
+    return false;
   };
 
   const handleCreate = () => {
@@ -205,6 +231,13 @@ const QuestionAdmin: React.FC = () => {
                 <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
                   新建题目
                 </Button>
+                <Upload
+                  accept=".xlsx,.xls"
+                  showUploadList={false}
+                  beforeUpload={handleBatchImportQuestions}
+                >
+                  <Button icon={<UploadOutlined />}>批量导入题库</Button>
+                </Upload>
               </Space>
             </Col>
           </Row>

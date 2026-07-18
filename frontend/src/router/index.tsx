@@ -4,61 +4,24 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import Home from '../pages/Home';
-import Login from '../pages/Login';
 import ResumeUpload from '../pages/Resume/Upload';
-import ResumeList from '../pages/Resume/List';
-import ResumeEdit from '../pages/Resume/Edit';
 import ResumeDiagnosis from '../pages/Resume/Diagnosis';
 import ResumeVersions from '../pages/Resume/Versions';
+import ResumeEdit from '../pages/Resume/Edit';
 import JobMatch from '../pages/Job/Match';
-import JobList from '../pages/Job/List';
-import JobInterpret from '../pages/Job/Interpret';
-import InterviewPrep from '../pages/Interview/Prep';
-import MockInterview from '../pages/Interview/Mock';
+import JobCenter from '../pages/Job/Center';
+import InterviewExam from '../pages/Interview/Exam';
+import QuestionBank from '../pages/Interview/QuestionBank';
+import UserProfile from '../pages/User/Profile';
 import Analytics from '../pages/Analytics';
 import JobAdmin from '../pages/Admin/JobAdmin';
 import QuestionAdmin from '../pages/Admin/QuestionAdmin';
 import LogQuery from '../pages/Admin/LogQuery';
-import { useStore } from '../store';
-
-// 路由守卫：需要登录
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const user = useStore((state) => state.user);
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <>{children}</>;
-};
-
-// 路由守卫：需要管理员权限
-const AdminRoute = ({ children }: { children: React.ReactNode }) => {
-  const user = useStore((state) => state.user);
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (user.role !== 'admin') {
-    return <Navigate to="/" replace />;
-  }
-
-  return <>{children}</>;
-};
 
 export const router = createBrowserRouter([
   {
-    path: '/login',
-    element: <Login />,
-  },
-  {
     path: '/',
-    element: (
-      <ProtectedRoute>
-        <MainLayout />
-      </ProtectedRoute>
-    ),
+    element: <MainLayout />,
     children: [
       {
         index: true,
@@ -68,24 +31,20 @@ export const router = createBrowserRouter([
         path: 'resume',
         children: [
           {
-            path: 'list',
-            element: <ResumeList />,
-          },
-          {
             path: 'upload',
             element: <ResumeUpload />,
           },
           {
-            path: 'edit/:resumeId',
-            element: <ResumeEdit />,
-          },
-          {
-            path: 'diagnosis/:resumeId',
+            path: ':resumeId/diagnosis',
             element: <ResumeDiagnosis />,
           },
           {
-            path: 'versions/:resumeId',
+            path: ':resumeId/versions',
             element: <ResumeVersions />,
+          },
+          {
+            path: ':resumeId/edit',
+            element: <ResumeEdit />,
           },
           {
             path: ':resumeId/match',
@@ -97,12 +56,8 @@ export const router = createBrowserRouter([
         path: 'job',
         children: [
           {
-            path: 'list',
-            element: <JobList />,
-          },
-          {
-            path: 'interpret/:jobId',
-            element: <JobInterpret />,
+            path: 'center',
+            element: <JobCenter />,
           },
         ],
       },
@@ -110,12 +65,12 @@ export const router = createBrowserRouter([
         path: 'interview',
         children: [
           {
-            path: 'prep',
-            element: <InterviewPrep />,
+            path: 'exam',
+            element: <InterviewExam />,
           },
           {
-            path: 'mock',
-            element: <MockInterview />,
+            path: 'questions',
+            element: <QuestionBank />,
           },
         ],
       },
@@ -124,31 +79,28 @@ export const router = createBrowserRouter([
         element: <Analytics />,
       },
       {
+        path: 'user',
+        children: [
+          {
+            path: 'profile',
+            element: <UserProfile />,
+          },
+        ],
+      },
+      {
         path: 'admin',
         children: [
           {
             path: 'jobs',
-            element: (
-              <AdminRoute>
-                <JobAdmin />
-              </AdminRoute>
-            ),
+            element: <JobAdmin />,
           },
           {
             path: 'questions',
-            element: (
-              <AdminRoute>
-                <QuestionAdmin />
-              </AdminRoute>
-            ),
+            element: <QuestionAdmin />,
           },
           {
             path: 'logs',
-            element: (
-              <AdminRoute>
-                <LogQuery />
-              </AdminRoute>
-            ),
+            element: <LogQuery />,
           },
         ],
       },

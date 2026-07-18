@@ -2,13 +2,13 @@
 题库管理 API 路由
 """
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, HTTPException, Request
+from fastapi import APIRouter, Depends, Query, HTTPException, Request, UploadFile, File
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.core.auth import require_admin
 from app.services.question_service import QuestionService
 from app.services.log_service import LogService
+from app.services.batch_import_service import batch_import_service
 from app.models.question import (
     QuestionCreate,
     QuestionUpdate,
@@ -23,17 +23,16 @@ router = APIRouter(prefix="/api/v1/admin/questions", tags=["题库管理"])
 def create_question(
     data: QuestionCreate,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(require_admin)
+    db: Session = Depends(get_db)
 ):
-    """1. 创建题目（需要管理员权限）"""
+    """1. 创建题目"""
     service = QuestionService(db)
     result = service.create_question(data)
 
     # 写日志
     log_service = LogService(db)
     log_service.create_log(
-        user_id=current_user.get("user_id", 1),
+        user_id=1,
         action="CREATE",
         module="question",
         details={"question_id": result.id, "category": result.category},
@@ -75,10 +74,9 @@ def update_question(
     question_id: int,
     data: QuestionUpdate,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(require_admin)
+    db: Session = Depends(get_db)
 ):
-    """4. 更新题目（需要管理员权限）"""
+    """4. 更新题目"""
     service = QuestionService(db)
     result = service.update_question(question_id, data)
     if not result:
@@ -87,7 +85,7 @@ def update_question(
     # 写日志
     log_service = LogService(db)
     log_service.create_log(
-        user_id=current_user.get("user_id", 1),
+        user_id=1,
         action="UPDATE",
         module="question",
         details={"question_id": result.id, "category": result.category},
@@ -101,10 +99,9 @@ def update_question(
 def delete_question(
     question_id: int,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(require_admin)
+    db: Session = Depends(get_db)
 ):
-    """5. 删除题目（需要管理员权限）"""
+    """5. 删除题目"""
     # 先获取要删除的题目信息（用于日志）
     question_service = QuestionService(db)
     question = question_service.get_question_by_id(question_id)
@@ -117,7 +114,7 @@ def delete_question(
     # 写日志
     log_service = LogService(db)
     log_service.create_log(
-        user_id=current_user.get("user_id", 1),
+        user_id=1,
         action="DELETE",
         module="question",
         details={"question_id": question_id, "category": question.category},
@@ -125,3 +122,31 @@ def delete_question(
     )
 
     return None
+
+
+@router.post("/batch-import", status_code=201)
+async def batch_import_questions(
+    file: UploadFile = File(...),
+    request: Request = None,
+    db: Session = Depends(get_db)
+):
+    """6. 批量导入题目（Excel）"""
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="只支持 Excel 文件格式（.xlsx, .xls）")
+
+    try:
+        result = await batch_import_service.import_questions_from_excel(file, db)
+
+        # 写日志
+        log_service = LogService(db)
+        log_service.create_log(
+            user_id=1,
+            action="BATCH_IMPORT",
+            module="question",
+            details={"total": result["total"], "success": result["success"], "failed": result["failed"]},
+            ip_address=request.client.host if request and request.client else None
+        )
+
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"导入失败: {str(e)}")

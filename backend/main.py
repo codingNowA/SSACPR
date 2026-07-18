@@ -11,6 +11,9 @@ from app.api import questions
 from app.api import jobs
 from app.api import logs
 from app.api import dictionary
+from app.api import interview_exam
+from app.api import job_center
+from app.api import interview_questions
 
 from app.api.v1 import api_v1_router
 from app.services.job_service import get_db_pool, close_db_pool
@@ -66,11 +69,14 @@ app.add_middleware(
 )
 
 # ========== 注册路由 ==========
-app.include_router(analytics.router)  # ← 这一行是新加的
+app.include_router(analytics.router)
 app.include_router(questions.router)
 app.include_router(jobs.router)
 app.include_router(logs.router)
 app.include_router(dictionary.router)
+app.include_router(interview_exam.router)
+app.include_router(job_center.router)
+app.include_router(interview_questions.router)
 app.include_router(api_v1_router)
 
 

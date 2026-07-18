@@ -24,8 +24,10 @@ import {
   DeleteOutlined,
   ReloadOutlined,
   SearchOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import { getAdminJobs, createJob, updateJob, deleteJob } from '../../services/jobAdmin';
+import { Upload } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Title, Text } = Typography;
@@ -69,6 +71,30 @@ const JobAdmin: React.FC = () => {
   const handleSearch = (values: any) => {
     setPage(1);
     loadJobs(values);
+  };
+
+  const handleBatchImportJobs = async (file: any) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch('/api/v1/jobs/batch-import', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok) {
+        message.success(data?.message || '导入成功');
+        loadJobs();
+      } else {
+        message.error(data?.detail || '导入失败');
+      }
+    } catch (e: any) {
+      message.error('导入失败: ' + (e.message || '网络错误'));
+    }
+    return false;
   };
 
   const handleCreate = () => {
@@ -206,6 +232,14 @@ const JobAdmin: React.FC = () => {
                 </Button>
                 <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
                   新建岗位
+                </Button>
+                <Upload
+                  accept=".xlsx,.xls"
+                  showUploadList={false}
+                  beforeUpload={handleBatchImportJobs}
+                >
+                  <Button icon={<UploadOutlined />}>批量导入岗位</Button>
+                </Upload>
                 </Button>
               </Space>
             </Col>

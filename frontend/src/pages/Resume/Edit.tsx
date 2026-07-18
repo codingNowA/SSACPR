@@ -1,426 +1,233 @@
 /**
- * 简历编辑页面
+ * 简历编辑/重新上传页面
  */
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Card,
+  Upload,
+  Button,
   Form,
   Input,
-  Button,
   Space,
   Typography,
   message,
   Spin,
-  Divider,
-  Row,
-  Col,
-  Tag,
-  DatePicker,
-  Select,
-  Modal,
+  Alert,
+  Steps,
 } from 'antd';
 import {
-  SaveOutlined,
+  UploadOutlined,
   ArrowLeftOutlined,
-  EyeOutlined,
-  PlusOutlined,
-  DeleteOutlined,
+  SaveOutlined,
+  InboxOutlined,
 } from '@ant-design/icons';
-import apiClient from '../../services/api';
-import { createResumeVersion } from '../../services/resume';
-import dayjs from 'dayjs';
+import type { UploadFile } from 'antd/es/upload/interface';
+import { uploadResume, parseResume, diagnoseResume } from '../../services/resume';
+import { useAppStore } from '../../store';
+import { isValidResumeFile, formatFileSize } from '../../utils';
 
 const { Title, Text, Paragraph } = Typography;
+const { Dragger } = Upload;
 const { TextArea } = Input;
-const { Option } = Select;
 
 const ResumeEdit: React.FC = () => {
   const { resumeId } = useParams<{ resumeId: string }>();
   const navigate = useNavigate();
+  const { userId, setCurrentResumeId, setResumeData, setDiagnosisResult } = useAppStore();
+
   const [form] = Form.useForm();
-
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveModalVisible, setSaveModalVisible] = useState(false);
-  const [versionName, setVersionName] = useState('');
-  const [resumeData, setResumeData] = useState<any>(null);
 
-  useEffect(() => {
-    if (resumeId) {
-      loadResumeData();
-    }
-  }, [resumeId]);
-
-  const loadResumeData = async () => {
-    setLoading(true);
-    try {
-      const response = await apiClient.get(`/api/v1/resume/${resumeId}/structured`);
-      const data = response?.data || response;
-
-      setResumeData(data);
-
-      // 填充表单
-      form.setFieldsValue({
-        name: data.name,
-        phone: data.phone,
-        email: data.email,
-        education: data.education || [],
-        work_experience: data.work_experience || [],
-        project_experience: data.project_experience || [],
-        skills: data.skills?.join(', ') || '',
-        self_evaluation: data.self_evaluation,
-      });
-    } catch (error: any) {
-      message.error(error || '加载简历数据失败');
-      navigate('/resume/list');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSave = async () => {
-    try {
-      const values = await form.validateFields();
-
-      // 转换技能为数组
-      const skills = values.skills ? values.skills.split(/[,，、]/).map((s: string) => s.trim()).filter(Boolean) : [];
-
-      const structuredData = {
-        ...values,
-        skills,
-      };
-
-      // 更新简历数据
-      await apiClient.put(`/api/v1/resume/${resumeId}/structured`, structuredData);
-
-      message.success('简历保存成功！');
-      setSaveModalVisible(true);
-    } catch (error: any) {
-      if (error?.errorFields) {
-        message.warning('请检查必填项');
-      } else {
-        message.error(error || '保存失败');
-      }
-    }
-  };
-
-  const handleSaveVersion = async () => {
-    if (!versionName.trim()) {
-      message.warning('请输入版本名称');
+  const handleReupload = async () => {
+    if (fileList.length === 0) {
+      message.warning('请先选择文件');
       return;
     }
 
-    setSaving(true);
+    const file = fileList[0].originFileObj;
+    if (!file) {
+      message.error('文件读取失败，请重新选择');
+      return;
+    }
+
+    if (!isValidResumeFile(file)) {
+      message.error('不支持的文件格式，请上传 PDF、Word 或图片文件');
+      return;
+    }
+
+    setUploading(true);
+    setCurrentStep(0);
+
     try {
-      const values = form.getFieldsValue();
-      const skills = values.skills ? values.skills.split(/[,，、]/).map((s: string) => s.trim()).filter(Boolean) : [];
+      // 步骤 1: 上传文件
+      message.loading({ content: '正在上传简历...', key: 'upload', duration: 0 });
+      if (!userId) {
+        message.error('请先登录');
+        setUploading(false);
+        return;
+      }
 
-      // 构造符合 parsed_data 格式的数据结构
-      const parsedData = {
-        basic_info: {
-          name: values.name,
-          phone: values.phone,
-          email: values.email,
-        },
-        education: values.education || [],
-        work_experience: values.work_experience || [],
-        project_experience: values.project_experience || [],
-        skills: skills,
-        self_evaluation: values.self_evaluation,
-      };
+      const uploadResult = await uploadResume(file, userId);
+      message.success({ content: '上传成功！', key: 'upload' });
+      setCurrentStep(1);
 
-      // 保存为新版本
-      await createResumeVersion(
-        parseInt(resumeId!),
-        versionName,
-        null, // scores 为空
-        parsedData // 传递结构化的 parsed_data
-      );
+      const newResumeId = uploadResult.resume_id;
 
-      message.success('版本保存成功！');
-      setSaveModalVisible(false);
-      setVersionName('');
+      if (!newResumeId) {
+        message.error('简历上传成功，但自动解析失败。请稍后重试或联系管理员。');
+        setCurrentStep(0);
+        setUploading(false);
+        return;
+      }
 
-      // 跳转到版本历史
-      navigate(`/resume/versions/${resumeId}`);
+      setCurrentResumeId(newResumeId);
+
+      // 步骤 2: 解析简历
+      message.loading({ content: '正在解析简历内容...', key: 'parse', duration: 0 });
+      const resumeData = await parseResume(newResumeId);
+      setResumeData(resumeData);
+      message.success({ content: '解析完成！', key: 'parse' });
+      setCurrentStep(2);
+
+      // 步骤 3: 智能诊断
+      message.loading({ content: '正在进行智能诊断...', key: 'diagnose', duration: 0 });
+      const diagnosisResult = await diagnoseResume(newResumeId);
+      setDiagnosisResult(diagnosisResult);
+      message.success({ content: '诊断完成！', key: 'diagnose' });
+      setCurrentStep(3);
+
+      // 跳转到诊断结果页面
+      setTimeout(() => {
+        navigate(`/resume/${newResumeId}/diagnosis`);
+      }, 1000);
+
     } catch (error: any) {
-      message.error(error || '保存版本失败');
+      message.error(error || '处理失败，请重试');
+      setCurrentStep(0);
     } finally {
-      setSaving(false);
+      setUploading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div style={{ textAlign: 'center', padding: '100px 0' }}>
-        <Spin size="large" tip="加载简历数据中..." />
-      </div>
-    );
-  }
+  const steps = [
+    { title: '上传文件', icon: <UploadOutlined /> },
+    { title: '解析内容', icon: <SaveOutlined /> },
+    { title: '智能诊断', icon: <SaveOutlined /> },
+  ];
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ padding: '24px', maxWidth: '900px', margin: '0 auto' }}>
       <Card>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          {/* 头部 */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Space>
-              <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
-                返回
-              </Button>
-              <Title level={2} style={{ margin: 0 }}>编辑简历</Title>
-              <Tag color="blue">ID: {resumeId}</Tag>
-            </Space>
-            <Space>
-              <Button
-                icon={<EyeOutlined />}
-                onClick={() => navigate(`/resume/diagnosis/${resumeId}`)}
-              >
-                查看诊断
-              </Button>
-              <Button type="primary" icon={<SaveOutlined />} onClick={handleSave}>
-                保存并创建版本
-              </Button>
-            </Space>
+            <div>
+              <Title level={2}>编辑简历</Title>
+              <Paragraph type="secondary">
+                重新上传简历文件，系统将自动保存为新版本
+              </Paragraph>
+            </div>
+            <Button
+              icon={<ArrowLeftOutlined />}
+              onClick={() => navigate(`/resume/${resumeId}/versions`)}
+            >
+              返回版本列表
+            </Button>
           </div>
 
-          <Divider />
+          {uploading && (
+            <Steps current={currentStep} items={steps} />
+          )}
 
-          {/* 编辑表单 */}
+          <Alert
+            message="支持的文件格式"
+            description="PDF、Word (doc/docx)、图片 (png/jpg/jpeg)"
+            type="info"
+            showIcon
+          />
+
           <Form form={form} layout="vertical">
-            {/* 基本信息 */}
-            <Card title="基本信息" size="small" style={{ marginBottom: 16 }}>
-              <Row gutter={16}>
-                <Col span={8}>
-                  <Form.Item label="姓名" name="name" rules={[{ required: true, message: '请输入姓名' }]}>
-                    <Input placeholder="请输入姓名" />
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <Form.Item label="手机号" name="phone" rules={[{ required: true, message: '请输入手机号' }]}>
-                    <Input placeholder="请输入手机号" />
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <Form.Item
-                    label="邮箱"
-                    name="email"
-                    rules={[
-                      { required: true, message: '请输入邮箱' },
-                      { pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: '邮箱格式不正确' }
-                    ]}
-                  >
-                    <Input placeholder="请输入邮箱" />
-                  </Form.Item>
-                </Col>
-              </Row>
-            </Card>
-
-            {/* 教育经历 */}
-            <Card title="教育经历" size="small" style={{ marginBottom: 16 }}>
-              <Form.List name="education">
-                {(fields, { add, remove }) => (
-                  <>
-                    {fields.map((field, index) => (
-                      <Card key={field.key} size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <Text strong>教育经历 {index + 1}</Text>
-                            <Button type="link" danger icon={<DeleteOutlined />} onClick={() => remove(field.name)}>
-                              删除
-                            </Button>
-                          </div>
-                          <Row gutter={16}>
-                            <Col span={12}>
-                              <Form.Item {...field} name={[field.name, 'school']} label="学校" rules={[{ required: true }]}>
-                                <Input placeholder="学校名称" />
-                              </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                              <Form.Item {...field} name={[field.name, 'major']} label="专业" rules={[{ required: true }]}>
-                                <Input placeholder="专业名称" />
-                              </Form.Item>
-                            </Col>
-                          </Row>
-                          <Row gutter={16}>
-                            <Col span={8}>
-                              <Form.Item {...field} name={[field.name, 'degree']} label="学历">
-                                <Select placeholder="选择学历">
-                                  <Option value="高中">高中</Option>
-                                  <Option value="大专">大专</Option>
-                                  <Option value="本科">本科</Option>
-                                  <Option value="硕士">硕士</Option>
-                                  <Option value="博士">博士</Option>
-                                </Select>
-                              </Form.Item>
-                            </Col>
-                            <Col span={8}>
-                              <Form.Item {...field} name={[field.name, 'start_date']} label="开始时间">
-                                <Input placeholder="2019-09" />
-                              </Form.Item>
-                            </Col>
-                            <Col span={8}>
-                              <Form.Item {...field} name={[field.name, 'end_date']} label="结束时间">
-                                <Input placeholder="2023-06" />
-                              </Form.Item>
-                            </Col>
-                          </Row>
-                        </Space>
-                      </Card>
-                    ))}
-                    <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                      添加教育经历
-                    </Button>
-                  </>
-                )}
-              </Form.List>
-            </Card>
-
-            {/* 工作经历 */}
-            <Card title="工作经历" size="small" style={{ marginBottom: 16 }}>
-              <Form.List name="work_experience">
-                {(fields, { add, remove }) => (
-                  <>
-                    {fields.map((field, index) => (
-                      <Card key={field.key} size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <Text strong>工作经历 {index + 1}</Text>
-                            <Button type="link" danger icon={<DeleteOutlined />} onClick={() => remove(field.name)}>
-                              删除
-                            </Button>
-                          </div>
-                          <Row gutter={16}>
-                            <Col span={12}>
-                              <Form.Item {...field} name={[field.name, 'company']} label="公司" rules={[{ required: true }]}>
-                                <Input placeholder="公司名称" />
-                              </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                              <Form.Item {...field} name={[field.name, 'position']} label="职位" rules={[{ required: true }]}>
-                                <Input placeholder="职位名称" />
-                              </Form.Item>
-                            </Col>
-                          </Row>
-                          <Row gutter={16}>
-                            <Col span={12}>
-                              <Form.Item {...field} name={[field.name, 'start_date']} label="开始时间">
-                                <Input placeholder="2020-07" />
-                              </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                              <Form.Item {...field} name={[field.name, 'end_date']} label="结束时间">
-                                <Input placeholder="2023-12 或 至今" />
-                              </Form.Item>
-                            </Col>
-                          </Row>
-                          <Form.Item {...field} name={[field.name, 'description']} label="工作描述">
-                            <TextArea rows={4} placeholder="描述你的工作内容和成就..." />
-                          </Form.Item>
-                        </Space>
-                      </Card>
-                    ))}
-                    <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                      添加工作经历
-                    </Button>
-                  </>
-                )}
-              </Form.List>
-            </Card>
-
-            {/* 项目经验 */}
-            <Card title="项目经验" size="small" style={{ marginBottom: 16 }}>
-              <Form.List name="project_experience">
-                {(fields, { add, remove }) => (
-                  <>
-                    {fields.map((field, index) => (
-                      <Card key={field.key} size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <Text strong>项目经验 {index + 1}</Text>
-                            <Button type="link" danger icon={<DeleteOutlined />} onClick={() => remove(field.name)}>
-                              删除
-                            </Button>
-                          </div>
-                          <Row gutter={16}>
-                            <Col span={12}>
-                              <Form.Item {...field} name={[field.name, 'name']} label="项目名称" rules={[{ required: true }]}>
-                                <Input placeholder="项目名称" />
-                              </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                              <Form.Item {...field} name={[field.name, 'role']} label="担任角色">
-                                <Input placeholder="项目角色" />
-                              </Form.Item>
-                            </Col>
-                          </Row>
-                          <Row gutter={16}>
-                            <Col span={12}>
-                              <Form.Item {...field} name={[field.name, 'start_date']} label="开始时间">
-                                <Input placeholder="2022-01" />
-                              </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                              <Form.Item {...field} name={[field.name, 'end_date']} label="结束时间">
-                                <Input placeholder="2022-06" />
-                              </Form.Item>
-                            </Col>
-                          </Row>
-                          <Form.Item {...field} name={[field.name, 'description']} label="项目描述">
-                            <TextArea rows={4} placeholder="描述项目背景、你的职责和成果..." />
-                          </Form.Item>
-                        </Space>
-                      </Card>
-                    ))}
-                    <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                      添加项目经验
-                    </Button>
-                  </>
-                )}
-              </Form.List>
-            </Card>
-
-            {/* 技能特长 */}
-            <Card title="技能特长" size="small" style={{ marginBottom: 16 }}>
-              <Form.Item
-                label="技能列表"
-                name="skills"
-                extra="多个技能用逗号分隔，如：Java, Python, React"
+            <Form.Item
+              label="上传新简历"
+              name="file"
+              rules={[{ required: true, message: '请上传简历文件' }]}
+            >
+              <Dragger
+                name="file"
+                multiple={false}
+                fileList={fileList}
+                beforeUpload={(file) => {
+                  setFileList([{
+                    uid: '-1',
+                    name: file.name,
+                    status: 'done',
+                    size: file.size,
+                    originFileObj: file,
+                  } as any]);
+                  return false;
+                }}
+                onRemove={() => {
+                  setFileList([]);
+                }}
+                disabled={uploading}
+                maxCount={1}
               >
-                <TextArea rows={3} placeholder="请输入技能，用逗号分隔" />
-              </Form.Item>
-            </Card>
+                <p className="ant-upload-drag-icon">
+                  <InboxOutlined style={{ fontSize: '48px', color: '#1890ff' }} />
+                </p>
+                <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
+                <p className="ant-upload-hint">
+                  支持单个文件上传，文件大小不超过 10MB
+                </p>
+              </Dragger>
+            </Form.Item>
 
-            {/* 自我评价 */}
-            <Card title="自我评价" size="small">
-              <Form.Item label="自我评价" name="self_evaluation">
-                <TextArea rows={6} placeholder="简要介绍你的优势、特点和职业目标..." />
-              </Form.Item>
-            </Card>
+            {fileList.length > 0 && (
+              <Card size="small" style={{ marginBottom: 16 }}>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Text strong>已选择文件:</Text>
+                  <Text>{fileList[0].name}</Text>
+                  <Text type="secondary">
+                    大小: {formatFileSize(fileList[0].size || fileList[0].originFileObj?.size || 0)}
+                  </Text>
+                </Space>
+              </Card>
+            )}
+
+            <Form.Item>
+              <Space>
+                <Button
+                  type="primary"
+                  icon={<SaveOutlined />}
+                  onClick={handleReupload}
+                  loading={uploading}
+                  disabled={fileList.length === 0}
+                  size="large"
+                >
+                  {uploading ? '处理中...' : '上传并保存为新版本'}
+                </Button>
+                <Button
+                  onClick={() => navigate(`/resume/${resumeId}/versions`)}
+                  disabled={uploading}
+                  size="large"
+                >
+                  取消
+                </Button>
+              </Space>
+            </Form.Item>
           </Form>
+
+          <div style={{ textAlign: 'center' }}>
+            <Space direction="vertical" size="small">
+              <Text type="secondary">上传后将自动：</Text>
+              <Text type="secondary">✓ 解析简历内容 ✓ 智能诊断 ✓ 保存新版本</Text>
+            </Space>
+          </div>
         </Space>
       </Card>
-
-      {/* 保存版本弹窗 */}
-      <Modal
-        title="保存为新版本"
-        open={saveModalVisible}
-        onOk={handleSaveVersion}
-        onCancel={() => setSaveModalVisible(false)}
-        confirmLoading={saving}
-        okText="确定"
-        cancelText="取消"
-      >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Text>请为这个版本命名：</Text>
-          <Input
-            placeholder="例如：根据优化建议修改-v1"
-            value={versionName}
-            onChange={(e) => setVersionName(e.target.value)}
-          />
-        </Space>
-      </Modal>
     </div>
   );
 };

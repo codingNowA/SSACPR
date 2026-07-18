@@ -4,6 +4,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from app.core.auth import create_access_token, get_current_user
 from app.db import get_db
@@ -43,6 +44,20 @@ class UserInfoResponse(BaseModel):
     role: str
     email: str = ""
     real_name: str = ""
+
+
+class UserStatsResponse(BaseModel):
+    """用户统计响应"""
+    user_id: int
+    username: str
+    role: str
+    email: str = ""
+    real_name: str = ""
+    resume_count: int = 0
+    version_count: int = 0
+    match_count: int = 0
+    created_at: str = ""
+    last_login: str = ""
 
 
 @router.post("/login", response_model=LoginResponse, summary="用户登录")
@@ -99,7 +114,7 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
         username=request.username,
         password=request.password,
         email=request.email,
-        role="student",  # 新注册用户默认为学生
+        role="student",
         real_name=request.real_name
     )
 
@@ -141,6 +156,62 @@ async def get_current_user_info(current_user: dict = Depends(get_current_user)):
     )
 
 
+@router.get("/stats", response_model=UserStatsResponse, summary="获取用户统计信息")
+async def get_user_stats(
+    user_id: int = None,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    获取用户统计信息：简历数、版本数、匹配次数等
+    不传 user_id 时默认查当前登录用户
+    """
+    target_user_id = user_id or current_user.get("user_id", 1)
+
+    # 查用户基本信息
+    user_row = db.execute(
+        text("SELECT id, username, role, email, real_name, created_at, updated_at FROM users WHERE id = :uid"),
+        {"uid": target_user_id}
+    ).fetchone()
+
+    if not user_row:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    # 简历数
+    r = db.execute(
+        text("SELECT COUNT(*) as cnt FROM resumes WHERE user_id = :uid"),
+        {"uid": target_user_id}
+    ).fetchone()
+    resume_count = r[0] if r else 0
+
+    # 版本数
+    r = db.execute(
+        text("SELECT COUNT(*) as cnt FROM resume_versions rv JOIN resumes r ON rv.resume_id = r.id WHERE r.user_id = :uid"),
+        {"uid": target_user_id}
+    ).fetchone()
+    version_count = r[0] if r else 0
+
+    # 匹配次数
+    r = db.execute(
+        text("SELECT COUNT(*) as cnt FROM matches WHERE user_id = :uid"),
+        {"uid": target_user_id}
+    ).fetchone()
+    match_count = r[0] if r else 0
+
+    return UserStatsResponse(
+        user_id=user_row[0],
+        username=user_row[1],
+        role=user_row[2],
+        email=user_row[3] or "",
+        real_name=user_row[4] or "",
+        resume_count=resume_count,
+        version_count=version_count,
+        match_count=match_count,
+        created_at=str(user_row[5]) if user_row[5] else "",
+        last_login=str(user_row[6]) if user_row[6] else "",
+    )
+
+
 @router.get("/test", summary="测试认证（需要登录）")
 async def test_auth(current_user: dict = Depends(get_current_user)):
     """
@@ -148,7 +219,7 @@ async def test_auth(current_user: dict = Depends(get_current_user)):
 
     在 Swagger UI 中：
     1. 先调用 /auth/login 获取 token
-    2. 点击右上角 🔒 Authorize
+    2. 点击右上角 Authorize
     3. 输入: Bearer <your_token>
     4. 然后才能调用这个接口
     """
