@@ -209,7 +209,9 @@ const ResumeDiagnosis: React.FC = () => {
                 <Title level={2}>
                   <TrophyOutlined /> 简历诊断
                 </Title>
-                <Text type="secondary">简历ID: {resumeId}</Text>
+                <Text type="secondary">
+                  简历 #{resumeData?._user_resume_number || resumeId}
+                </Text>
               </Col>
               <Col>
                 <Space>
@@ -289,7 +291,7 @@ const ResumeDiagnosis: React.FC = () => {
                 <TrophyOutlined /> 简历诊断报告
               </Title>
               <Text type="secondary">
-                简历ID: {resumeId}
+                简历 #{resumeData?._user_resume_number || resumeId}
                 {diagnosisResult?.created_at && ` | 诊断时间: ${formatDate(diagnosisResult.created_at)}`}
               </Text>
             </Col>

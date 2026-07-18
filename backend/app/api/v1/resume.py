@@ -168,7 +168,7 @@ async def list_resumes(
 
         # 查询列表
         query = text(f"""
-            SELECT id, user_id, file_path, file_type, version, status, created_at, updated_at
+            SELECT id, user_id, file_path, file_type, version, status, created_at, updated_at, user_resume_number
             FROM resumes
             {where_clause}
             ORDER BY created_at DESC
@@ -195,6 +195,7 @@ async def list_resumes(
                 "status": row[5],
                 "created_at": row[6].isoformat() if row[6] else None,
                 "updated_at": row[7].isoformat() if row[7] else None,
+                "user_resume_number": row[8],
             }
             for row in rows
         ]
@@ -282,7 +283,7 @@ async def get_resume_structured(
         current_user: 当前登录用户
 
     Returns:
-        结构化简历数据
+        结构化简历数据（包含 user_resume_number）
     """
     try:
         from app.db import get_db
@@ -291,8 +292,8 @@ async def get_resume_structured(
         user_id = current_user.get("user_id")
         db = next(get_db())
 
-        # 检查权限并获取数据
-        query = text("SELECT parsed_data FROM resumes WHERE id = :resume_id AND user_id = :user_id")
+        # 检查权限并获取数据（包含 user_resume_number）
+        query = text("SELECT parsed_data, user_resume_number FROM resumes WHERE id = :resume_id AND user_id = :user_id")
         result = db.execute(query, {"resume_id": resume_id, "user_id": user_id}).fetchone()
 
         if not result:
@@ -301,7 +302,15 @@ async def get_resume_structured(
                 detail="简历不存在或无权访问"
             )
 
-        return result[0] or {}
+        # 返回包含 user_resume_number 的数据
+        parsed_data = result[0] or {}
+        user_resume_number = result[1]
+
+        # 如果 parsed_data 是字典，添加 user_resume_number 字段
+        if isinstance(parsed_data, dict):
+            return {**parsed_data, "_user_resume_number": user_resume_number}
+
+        return parsed_data
 
     except HTTPException:
         raise

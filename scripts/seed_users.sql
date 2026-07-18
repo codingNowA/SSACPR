@@ -7,7 +7,7 @@ DELETE FROM users WHERE username IN ('admin', 'testuser');
 -- 插入管理员账户
 -- 用户名: admin, 密码: admin123
 INSERT INTO users (username, password_hash, email, role, real_name)
-VALUES ('admin', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5NU0k0TUrzZUC', 'admin@example.com', 'admin', '系统管理员')
+VALUES ('admin', '$2b$12$OVvtXqjuGv5iuvYEQrkekOHvEdGsdlS00dLFgpa.im/tRASHANVq2', 'admin@example.com', 'admin', '系统管理员')
 ON CONFLICT (username) DO UPDATE
 SET password_hash = EXCLUDED.password_hash,
     email = EXCLUDED.email,
@@ -17,7 +17,7 @@ SET password_hash = EXCLUDED.password_hash,
 -- 插入测试用户账户
 -- 用户名: testuser, 密码: user123
 INSERT INTO users (username, password_hash, email, role, real_name)
-VALUES ('testuser', '$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'user@example.com', 'student', '测试用户')
+VALUES ('testuser', '$2b$12$iozgovWmsUYB6S9L.ccDGeRkOXc7wGNIzDT7P1QjE/C84PMy59m6W', 'user@example.com', 'student', '测试用户')
 ON CONFLICT (username) DO UPDATE
 SET password_hash = EXCLUDED.password_hash,
     email = EXCLUDED.email,

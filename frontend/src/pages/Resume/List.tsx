@@ -41,6 +41,7 @@ interface Resume {
   status: string;
   created_at: string;
   updated_at: string;
+  user_resume_number?: number;
 }
 
 const ResumeList: React.FC = () => {
@@ -123,7 +124,7 @@ const ResumeList: React.FC = () => {
                 管理你的所有简历，查看详细内容和版本历史
                 {currentResumeId && (
                   <Tag color="gold" style={{ marginLeft: 8 }}>
-                    <StarFilled /> 当前简历 ID: {currentResumeId}
+                    <StarFilled /> 当前使用的简历
                   </Tag>
                 )}
               </Text>
@@ -175,7 +176,9 @@ const ResumeList: React.FC = () => {
                         <StarFilled style={{ color: '#faad14' }} />
                       )}
                       <FileTextOutlined />
-                      <Text strong>{getFileName(resume.file_path)}</Text>
+                      <Text strong>
+                        简历 #{resume.user_resume_number || resume.id} - {getFileName(resume.file_path)}
+                      </Text>
                       <Tag color={resume.status === 'active' ? 'success' : 'default'}>
                         {resume.status === 'active' ? '活跃' : resume.status}
                       </Tag>

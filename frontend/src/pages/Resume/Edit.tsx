@@ -208,7 +208,9 @@ const ResumeEdit: React.FC = () => {
                 返回
               </Button>
               <Title level={2} style={{ margin: 0 }}>编辑简历</Title>
-              <Tag color="blue">ID: {resumeId}</Tag>
+              <Tag color="blue">
+                简历 #{resumeData?._user_resume_number || resumeId}
+              </Tag>
             </Space>
             <Space>
               <Button

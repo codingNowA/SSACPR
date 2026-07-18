@@ -68,6 +68,7 @@ def main():
         ('001', 'Add current_version_id field'),
         ('002', 'Fix user password hashes'),
         ('003', 'Create test user'),
+        ('004', 'Add user_resume_number field'),
     ]
 
     for num, desc in migrations:

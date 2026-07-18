@@ -59,6 +59,7 @@ export const useStore = create<AppState>((set) => ({
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('currentResumeId'); // 清除当前简历ID
     set({
       user: null,
       currentResumeId: null,

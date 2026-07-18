@@ -35,6 +35,11 @@ apiClient.interceptors.request.use(
 // 响应拦截器
 apiClient.interceptors.response.use(
   (response) => {
+    // 如果是 blob 类型的响应（文件下载），直接返回
+    if (response.config.responseType === 'blob') {
+      return response.data;
+    }
+
     const payload = response.data;
     // 统一处理 ApiResponse 信封格式 { code, message, data }
     if (payload && typeof payload === 'object' && 'code' in payload) {

@@ -23,6 +23,9 @@ const Login: React.FC = () => {
       const response = await login(values.username, values.password);
       message.success('登录成功！');
 
+      // 清除旧用户的简历ID
+      localStorage.removeItem('currentResumeId');
+
       // 保存用户信息到store和localStorage
       setUser({
         userId: response.user_id,

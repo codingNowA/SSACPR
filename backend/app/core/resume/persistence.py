@@ -59,11 +59,25 @@ async def save_parsed_data_to_db(
             )
             resume_id = existing['id']
         else:
-            # 插入新简历
+            # 插入新简历，自动生成 user_resume_number
             resume_id = await conn.fetchval(
                 """
-                INSERT INTO resumes (user_id, file_path, file_type, status, parsed_data)
-                VALUES ($1, $2, $3, 'active', $4)
+                INSERT INTO resumes (
+                    user_id,
+                    file_path,
+                    file_type,
+                    status,
+                    parsed_data,
+                    user_resume_number
+                )
+                VALUES (
+                    $1,
+                    $2,
+                    $3,
+                    'active',
+                    $4,
+                    COALESCE((SELECT MAX(user_resume_number) FROM resumes WHERE user_id = $1), 0) + 1
+                )
                 RETURNING id
                 """,
                 user_id,

@@ -383,12 +383,24 @@ const ResumeVersions: React.FC = () => {
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [userResumeNumber, setUserResumeNumber] = useState<number | null>(null);
 
   useEffect(() => {
     if (resumeId) {
+      loadResumeInfo();
       loadVersions();
     }
   }, [resumeId, page, pageSize]);
+
+  const loadResumeInfo = async () => {
+    if (!resumeId) return;
+    try {
+      const response = await apiClient.get(`/api/v1/resume/${resumeId}/structured`);
+      setUserResumeNumber(response?._user_resume_number || null);
+    } catch (error) {
+      console.error('加载简历信息失败:', error);
+    }
+  };
 
   const loadVersions = async () => {
     if (!resumeId) return;
@@ -597,7 +609,7 @@ const ResumeVersions: React.FC = () => {
                   <HistoryOutlined /> 版本历史
                 </Title>
                 <div style={{ color: 'rgba(0, 0, 0, 0.45)' }}>
-                  简历ID: {resumeId} | 共 {total} 个版本
+                  简历 #{userResumeNumber || resumeId} | 共 {total} 个版本
                 </div>
               </div>
               <Button

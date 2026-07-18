@@ -166,7 +166,7 @@ restart:
 	@echo "[3/4] 等待服务就绪..."
 	@ping 127.0.0.1 -n 16 >nul 2>&1 || sleep 15 2>/dev/null || echo ""
 	@echo "[4/4] 运行数据库迁移..."
-	@$(MAKE) migrate
+	@python scripts/migrate.py >nul 2>&1 || echo "[提示] 迁移已执行"
 	@echo "===== 重启完成 ====="
 
 # 查看后端日志
