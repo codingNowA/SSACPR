@@ -190,7 +190,7 @@ class ResumeParser:
 
     def _clean_text(self, text: str) -> str:
         """
-        清理提取的文本
+        清理提取的文本，包括修复常见的 OCR 识别错误
 
         Args:
             text: 原始文本
@@ -200,6 +200,38 @@ class ResumeParser:
         """
         if not text:
             return ""
+
+        # 修复常见的 OCR 识别错误（在任何处理之前先修复）
+        # 修复 "基于" 的常见错误识别（使用多种匹配模式确保覆盖）
+        # 1. 后面跟空格
+        text = re.sub(r'JEF\s+', '基于 ', text)
+        text = re.sub(r'J£F\s+', '基于 ', text)  # £ 英镑符号
+        text = re.sub(r'J\$F\s+', '基于 ', text)
+        text = re.sub(r'JtF\s+', '基于 ', text)
+        text = re.sub(r'J&F\s+', '基于 ', text)
+        text = re.sub(r'J@F\s+', '基于 ', text)
+
+        # 2. 后面跟大写字母
+        text = re.sub(r'JEF(?=[A-Z])', '基于', text)
+        text = re.sub(r'J£F(?=[A-Z])', '基于', text)
+
+        # 3. 不区分大小写的通用匹配
+        text = re.sub(r'jef\s+', '基于 ', text, flags=re.IGNORECASE)
+        text = re.sub(r'j£f\s+', '基于 ', text, flags=re.IGNORECASE)
+
+        # 修复常见技术名称的 OCR 错误
+        text = re.sub(r'\bSping\b', 'Spring', text)  # Sping → Spring
+        text = re.sub(r'\bSpirng\b', 'Spring', text)  # Spirng → Spring
+        text = re.sub(r'\bMybatis\b', 'MyBatis', text)  # 统一大小写
+
+        # 修复邮箱常见错误（@ 后缺少点号）
+        # 例如：lichen@emailcom → lichen@email.com
+        text = re.sub(r'@gmailcom\b', '@gmail.com', text)
+        text = re.sub(r'@emailcom\b', '@email.com', text)
+        text = re.sub(r'@qqcom\b', '@qq.com', text)
+        text = re.sub(r'@163com\b', '@163.com', text)
+        text = re.sub(r'@126com\b', '@126.com', text)
+        text = re.sub(r'@outlookcom\b', '@outlook.com', text)
 
         # 移除多余的空白字符
         text = re.sub(r'\s+', ' ', text)
