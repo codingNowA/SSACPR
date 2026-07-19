@@ -91,6 +91,7 @@ dist-ssr/
 # ================================
 # 不忽略 docker-compose.yml 和 Dockerfile
 # 只忽略运行时产生的文件
+docker-compose.override.yml
 
 # ================================
 # 日志文件
