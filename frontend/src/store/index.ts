@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 全局状态管理
  */
 import { create } from 'zustand';
@@ -99,5 +99,5 @@ export const useStore = create<AppState>((set) => ({
     }),
 }));
 
-// 保留旧的导出以兼容现有代码
+// 别名导出，兼容 useAppStore 引用
 export const useAppStore = useStore;
