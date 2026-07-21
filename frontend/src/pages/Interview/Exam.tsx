@@ -87,7 +87,7 @@ const InterviewExam: React.FC = () => {
     if (examStarted && !examFinished) {
       setQuestionStartTime(Date.now());
     }
-  }, [currentQuestion, examStarted]);
+  }, [currentQuestion, examStarted, examFinished]);
 
   const loadQuestions = async () => {
     setLoading(true);
@@ -228,29 +228,48 @@ const InterviewExam: React.FC = () => {
 
       for (const ans of finalAnswers) {
         try {
-          const evalRes = await axios.post('/api/v1/interview/exam/evaluate', {
+          const evalRes = await axios.post('/api/v1/interview-mock/evaluate', {
             question: ans.question,
             answer: ans.answer,
-            time_spent: ans.time_spent,
           });
           const evalData = evalRes.data?.data || evalRes.data;
+          const feedback = evalData?.feedback || {};
+
           evaluatedAnswers.push({
             question: ans.question,
             user_answer: ans.answer,
-            reference_answer: evalData?.reference_answer || evalData?.feedback?.reference_answer || '',
-            score: evalData?.score || evalData?.feedback?.score || 0,
-            feedback: evalData?.feedback?.overall_comment || evalData?.feedback?.improvement || '',
+            reference_answer: feedback?.sample_answer || '',
+            score: feedback?.score || 0,
+            feedback: feedback?.overall_assessment || '',
           });
-          totalScore += evalData?.score || evalData?.feedback?.score || 0;
-        } catch {
+          totalScore += feedback?.score || 0;
+        } catch (error) {
+          console.error('评估失败:', error);
+          // 评估失败时，根据答案质量给予合理分数
+          const answerLength = ans.answer.trim().length;
+          const answerWords = ans.answer.trim().split(/\s+/).length;
+
+          let baseScore = 0;
+          if (answerLength < 20) {
+            baseScore = 20; // 答案太短
+          } else if (answerLength < 50) {
+            baseScore = 35; // 答案较短
+          } else if (answerLength < 100) {
+            baseScore = 45; // 答案一般
+          } else if (answerLength < 200) {
+            baseScore = 55; // 答案较完整
+          } else {
+            baseScore = 60; // 答案完整
+          }
+
           evaluatedAnswers.push({
             question: ans.question,
             user_answer: ans.answer,
             reference_answer: '',
-            score: 50,
-            feedback: '评估服务暂时不可用',
+            score: baseScore,
+            feedback: `AI 评估服务暂时不可用。初步评分：${baseScore}分（基于答案长度：${answerLength}字，约${answerWords}词）。建议：答案应详细且结构化，使用 STAR 法则组织内容。`,
           });
-          totalScore += 50;
+          totalScore += baseScore;
         }
       }
 
@@ -359,9 +378,11 @@ const InterviewExam: React.FC = () => {
             <TextArea
               value={currentAnswer}
               onChange={(e) => setCurrentAnswer(e.target.value)}
-              placeholder={currentQuestion === 0 
-                ? '请输入您的自我介绍（建议包含：姓名/专业、教育背景、核心技能、项目经历、求职意向）' 
-                : '请输入您的回答...'}
+              placeholder={
+                currentQuestion === 0
+                  ? '请输入您的自我介绍（建议包含：姓名/专业、教育背景、核心技能、项目经历、求职意向）'
+                  : '请输入您的回答（建议使用 STAR 法则：Situation 情境、Task 任务、Action 行动、Result 结果）'
+              }
               rows={6}
               showCount
               maxLength={2000}
@@ -493,7 +514,7 @@ const InterviewExam: React.FC = () => {
               }}>
                 再来一次
               </Button>
-              <Button icon={<HomeOutlined />} onClick={() => navigate('/interview')}>
+              <Button icon={<HomeOutlined />} onClick={() => navigate('/interview/mock')}>
                 返回面试
               </Button>
             </Space>
