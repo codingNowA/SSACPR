@@ -74,6 +74,11 @@ const MainLayout: React.FC = () => {
       icon: <BarChartOutlined />,
       label: '数据分析',
     },
+    {
+      key: '/user/profile',
+      icon: <UserOutlined />,
+      label: '个人中心',
+    },
     // 仅管理员可见管理菜单
     ...(isAdmin
       ? [
