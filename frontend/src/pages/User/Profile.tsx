@@ -12,7 +12,6 @@ import {
   Statistic,
   Row,
   Col,
-  List,
   Tag,
   Button,
   Avatar,
@@ -22,7 +21,6 @@ import {
   FileTextOutlined,
   HistoryOutlined,
   TrophyOutlined,
-  ClockCircleOutlined,
 } from '@ant-design/icons';
 import { useAppStore } from '../../store';
 import axios from 'axios';
@@ -105,7 +103,7 @@ const UserProfile: React.FC = () => {
 
         <Card title={<>使用统计</>} loading={loading}>
           <Row gutter={16}>
-            <Col span={6}>
+            <Col span={8}>
               <Statistic
                 title="简历总数"
                 value={stats?.resume_count || 0}
@@ -113,7 +111,7 @@ const UserProfile: React.FC = () => {
                 suffix="份"
               />
             </Col>
-            <Col span={6}>
+            <Col span={8}>
               <Statistic
                 title="保存版本"
                 value={stats?.version_count || 0}
@@ -121,20 +119,12 @@ const UserProfile: React.FC = () => {
                 suffix="个"
               />
             </Col>
-            <Col span={6}>
+            <Col span={8}>
               <Statistic
                 title="岗位匹配次数"
                 value={stats?.match_count || 0}
                 prefix={<TrophyOutlined />}
                 suffix="次"
-              />
-            </Col>
-            <Col span={6}>
-              <Statistic
-                title="最后登录"
-                value={formatDate(stats?.last_login || '')}
-                prefix={<ClockCircleOutlined />}
-                valueStyle={{ fontSize: 14 }}
               />
             </Col>
           </Row>

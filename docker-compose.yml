@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     ports:
-      - "54321:5432"              # 原 5432 改为 54321
+      - "60001:5432"              # 原 5432 改为 54321
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init.sql
