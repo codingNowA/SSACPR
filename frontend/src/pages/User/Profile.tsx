@@ -9,18 +9,11 @@ import {
   Descriptions,
   Space,
   Typography,
-  Statistic,
-  Row,
-  Col,
   Tag,
-  Button,
   Avatar,
 } from 'antd';
 import {
   UserOutlined,
-  FileTextOutlined,
-  HistoryOutlined,
-  TrophyOutlined,
 } from '@ant-design/icons';
 import { useAppStore } from '../../store';
 import axios from 'axios';
@@ -77,8 +70,7 @@ const UserProfile: React.FC = () => {
   };
 
   const roleMap: Record<string, { label: string; color: string }> = {
-    student: { label: '学生', color: 'blue' },
-    teacher: { label: '教师', color: 'green' },
+    user: { label: '普通用户', color: 'blue' },
     admin: { label: '管理员', color: 'red' },
   };
 
@@ -90,53 +82,16 @@ const UserProfile: React.FC = () => {
             <Avatar size={80} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
             <div>
               <Title level={2} style={{ margin: 0 }}>
-                {stats?.real_name || stats?.username || `用户 #${user?.userId || 1}`}
+                {stats?.username || `普通用户${user?.userId || ''}`}
               </Title>
               <Space>
-                <Text type="secondary">@{stats?.username || '-'}</Text>
-                <Tag color={roleMap[stats?.role || 'student']?.color || 'default'}>
-                  {roleMap[stats?.role || 'student']?.label || stats?.role}
+                <Text type="secondary">{stats?.email || '-'}</Text>
+                <Tag color={roleMap[stats?.role || 'user']?.color || 'default'}>
+                  {roleMap[stats?.role || 'user']?.label || stats?.role}
                 </Tag>
               </Space>
             </div>
           </Space>
-        </Card>
-
-        <Card
-          title={<>使用统计</>}
-          loading={loading}
-          extra={
-            <Button onClick={loadUserInfo} loading={loading}>
-              刷新数据
-            </Button>
-          }
-        >
-          <Row gutter={16}>
-            <Col span={8}>
-              <Statistic
-                title="简历总数"
-                value={stats?.resume_count || 0}
-                prefix={<FileTextOutlined />}
-                suffix="份"
-              />
-            </Col>
-            <Col span={8}>
-              <Statistic
-                title="保存版本"
-                value={stats?.version_count || 0}
-                prefix={<HistoryOutlined />}
-                suffix="个"
-              />
-            </Col>
-            <Col span={8}>
-              <Statistic
-                title="岗位匹配次数"
-                value={stats?.match_count || 0}
-                prefix={<TrophyOutlined />}
-                suffix="次"
-              />
-            </Col>
-          </Row>
         </Card>
 
         <Card title="详细信息">
@@ -145,18 +100,12 @@ const UserProfile: React.FC = () => {
             <Descriptions.Item label="用户名">{stats?.username || '-'}</Descriptions.Item>
             <Descriptions.Item label="邮箱">{stats?.email || '-'}</Descriptions.Item>
             <Descriptions.Item label="角色">
-              <Tag color={roleMap[stats?.role || 'student']?.color || 'default'}>
-                {roleMap[stats?.role || 'student']?.label || stats?.role}
+              <Tag color={roleMap[stats?.role || 'user']?.color || 'default'}>
+                {roleMap[stats?.role || 'user']?.label || stats?.role}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="注册时间">
-              {formatDate(stats?.created_at || '')}
-            </Descriptions.Item>
-            <Descriptions.Item label="账户状态">
+            <Descriptions.Item label="账户状态" span={2}>
               <Tag color="green">正常</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="总使用次数" span={2}>
-              {(stats?.resume_count || 0) + (stats?.match_count || 0)} 次
             </Descriptions.Item>
           </Descriptions>
         </Card>

@@ -99,7 +99,7 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
         username=request.username,
         password=request.password,
         email=request.email,
-        role="student",  # 新注册用户默认为学生
+        role="user",  # 新注册用户默认为普通用户
         real_name=request.real_name
     )
 
@@ -135,7 +135,7 @@ async def get_current_user_info(current_user: dict = Depends(get_current_user)):
     return UserInfoResponse(
         user_id=current_user.get("user_id", 0),
         username=current_user.get("username", ""),
-        role=current_user.get("role", "student"),
+        role=current_user.get("role", "user"),
         email=current_user.get("email", ""),
         real_name=current_user.get("real_name", "")
     )
@@ -212,7 +212,7 @@ async def get_user_stats(
         # 匹配次数（统计不同的简历和日期组合，避免一次匹配20个岗位算20次）
         match_count = await conn.fetchval(
             """
-            SELECT COUNT(DISTINCT (resume_id, DATE(created_at)))
+            SELECT COUNT(DISTINCT (resume_id, DATE(m.created_at)))
             FROM matches m
             JOIN resumes r ON m.resume_id = r.id
             WHERE r.user_id = $1
