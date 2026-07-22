@@ -47,7 +47,6 @@ const UserProfile: React.FC = () => {
   const { user } = useAppStore();
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<UserStats | null>(null);
-  const [recentVersions, setRecentVersions] = useState<any[]>([]);
 
   useEffect(() => {
     loadUserInfo();
@@ -66,21 +65,6 @@ const UserProfile: React.FC = () => {
       });
       const statsData = statsResponse.data?.data || statsResponse.data;
       setStats(statsData);
-
-      try {
-        const versionsResponse = await axios.get('/api/v1/resume/versions', {
-          params: {
-            user_id: user?.userId,
-            page: 1,
-            page_size: 5,
-          },
-          headers,
-        });
-        const versionsData = versionsResponse.data?.data || versionsResponse.data;
-        setRecentVersions(versionsData?.versions || versionsData?.items || []);
-      } catch {
-        // 版本查询失败不阻塞页面
-      }
     } catch (error) {
       console.error('加载用户信息失败:', error);
     } finally {
@@ -176,48 +160,6 @@ const UserProfile: React.FC = () => {
               {(stats?.resume_count || 0) + (stats?.match_count || 0)} 次
             </Descriptions.Item>
           </Descriptions>
-        </Card>
-
-        <Card
-          title="最近保存的简历版本"
-          extra={
-            <Button type="link" onClick={() => navigate('/resume/upload')}>
-              查看全部
-            </Button>
-          }
-        >
-          {recentVersions.length === 0 ? (
-            <Text type="secondary">暂无保存的简历版本</Text>
-          ) : (
-            <List
-              dataSource={recentVersions}
-              renderItem={(item) => (
-                <List.Item
-                  actions={[
-                    <Button
-                      type="link"
-                      onClick={() => navigate(`/resume/${item.resume_id || item.id}/versions`)}
-                    >
-                      查看详情
-                    </Button>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    avatar={<Avatar icon={<FileTextOutlined />} />}
-                    title={item.version_name || item.title || '未命名版本'}
-                    description={
-                      <Space>
-                        <Text type="secondary">
-                          创建时间：{formatDate(item.created_at)}
-                        </Text>
-                        {item.target_job && <Tag>{item.target_job}</Tag>}
-                      </Space>
-                    }
-                  />
-                </List.Item>
-              )}
-            />
-          )}
         </Card>
       </Space>
     </div>
