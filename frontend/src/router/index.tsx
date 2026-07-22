@@ -17,7 +17,6 @@ import JobCenter from '../pages/Job/Center';
 import InterviewPrep from '../pages/Interview/Prep';
 import InterviewIndex from '../pages/Interview/Index';
 import QuestionBank from '../pages/Interview/QuestionBank';
-import UserProfile from '../pages/User/Profile';
 import Analytics from '../pages/Analytics';
 import JobAdmin from '../pages/Admin/JobAdmin';
 import QuestionAdmin from '../pages/Admin/QuestionAdmin';
@@ -133,15 +132,6 @@ export const router = createBrowserRouter([
       {
         path: 'analytics',
         element: <Analytics />,
-      },
-      {
-        path: 'user',
-        children: [
-          {
-            path: 'profile',
-            element: <UserProfile />,
-          },
-        ],
       },
       {
         path: 'admin',

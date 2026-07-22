@@ -3,7 +3,7 @@
  * 显示用户ID、名字、使用次数、保存版本等信息
  */
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Card,
   Descriptions,
@@ -42,13 +42,14 @@ interface UserStats {
 
 const UserProfile: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAppStore();
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<UserStats | null>(null);
 
   useEffect(() => {
     loadUserInfo();
-  }, []);
+  }, [location.key]); // 监听路由变化，每次进入页面都刷新数据
 
   const loadUserInfo = async () => {
     setLoading(true);
@@ -101,7 +102,15 @@ const UserProfile: React.FC = () => {
           </Space>
         </Card>
 
-        <Card title={<>使用统计</>} loading={loading}>
+        <Card
+          title={<>使用统计</>}
+          loading={loading}
+          extra={
+            <Button onClick={loadUserInfo} loading={loading}>
+              刷新数据
+            </Button>
+          }
+        >
           <Row gutter={16}>
             <Col span={8}>
               <Statistic

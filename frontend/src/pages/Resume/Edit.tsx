@@ -415,6 +415,12 @@ const ResumeEdit: React.FC = () => {
                               placeholder="输入成果后按回车添加，可添加多条"
                               style={{ width: '100%' }}
                               tokenSeparators={[',']}
+                              open={false}
+                              onChange={(values) => {
+                                // 过滤掉空值
+                                const filtered = values.filter((v: string) => v && v.trim());
+                                form.setFieldValue(['work_experience', field.name, 'achievements'], filtered);
+                              }}
                             />
                           </Form.Item>
                         </Space>
@@ -475,6 +481,12 @@ const ResumeEdit: React.FC = () => {
                               placeholder="输入技术后按回车添加，例如：Java, Spring Boot, MySQL"
                               style={{ width: '100%' }}
                               tokenSeparators={[',']}
+                              open={false}
+                              onChange={(values) => {
+                                // 过滤掉空值
+                                const filtered = values.filter((v: string) => v && v.trim());
+                                form.setFieldValue(['project_experience', field.name, 'tech_stack'], filtered);
+                              }}
                             />
                           </Form.Item>
                           <Form.Item {...field} name={[field.name, 'achievements']} label="项目成果">
@@ -483,6 +495,12 @@ const ResumeEdit: React.FC = () => {
                               placeholder="输入成果后按回车添加，可添加多条"
                               style={{ width: '100%' }}
                               tokenSeparators={[',']}
+                              open={false}
+                              onChange={(values) => {
+                                // 过滤掉空值
+                                const filtered = values.filter((v: string) => v && v.trim());
+                                form.setFieldValue(['project_experience', field.name, 'achievements'], filtered);
+                              }}
                             />
                           </Form.Item>
                         </Space>

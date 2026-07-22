@@ -209,9 +209,14 @@ async def get_user_stats(
             target_user_id
         ) or 0
 
-        # 匹配次数
+        # 匹配次数（统计不同的简历和日期组合，避免一次匹配20个岗位算20次）
         match_count = await conn.fetchval(
-            "SELECT COUNT(*) FROM matches WHERE user_id = $1",
+            """
+            SELECT COUNT(DISTINCT (resume_id, DATE(created_at)))
+            FROM matches m
+            JOIN resumes r ON m.resume_id = r.id
+            WHERE r.user_id = $1
+            """,
             target_user_id
         ) or 0
 
