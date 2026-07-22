@@ -360,98 +360,176 @@ const ResumeDiagnosis: React.FC = () => {
         {/* 简历内容展示 */}
         {resumeData && (
           <Card title={<Text strong><FileTextOutlined /> 简历内容</Text>}>
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Collapse defaultActiveKey={['basic']}>
               {/* 基本信息 */}
               {resumeData.basic_info && (
-                <div>
-                  <Text strong style={{ fontSize: 16 }}>📋 基本信息</Text>
-                  <div style={{ marginTop: 8, marginLeft: 16 }}>
-                    <Row gutter={[16, 8]}>
-                      {resumeData.basic_info.name && <Col span={8}><Text>姓名：{resumeData.basic_info.name}</Text></Col>}
-                      {resumeData.basic_info.phone && <Col span={8}><Text>电话：{resumeData.basic_info.phone}</Text></Col>}
-                      {resumeData.basic_info.email && <Col span={8}><Text>邮箱：{resumeData.basic_info.email}</Text></Col>}
-                      {resumeData.basic_info.job_intention && <Col span={8}><Text>求职意向：{resumeData.basic_info.job_intention}</Text></Col>}
-                    </Row>
-                  </div>
-                </div>
+                <Panel header="📋 基本信息" key="basic">
+                  <Descriptions column={2} size="small">
+                    {resumeData.basic_info.name && (
+                      <Descriptions.Item label="姓名">{resumeData.basic_info.name}</Descriptions.Item>
+                    )}
+                    {resumeData.basic_info.phone && (
+                      <Descriptions.Item label="电话">{resumeData.basic_info.phone}</Descriptions.Item>
+                    )}
+                    {resumeData.basic_info.email && (
+                      <Descriptions.Item label="邮箱">{resumeData.basic_info.email}</Descriptions.Item>
+                    )}
+                    {resumeData.basic_info.job_intention && (
+                      <Descriptions.Item label="求职意向">{resumeData.basic_info.job_intention}</Descriptions.Item>
+                    )}
+                    {resumeData.basic_info.age && (
+                      <Descriptions.Item label="年龄">{resumeData.basic_info.age}</Descriptions.Item>
+                    )}
+                    {resumeData.basic_info.gender && (
+                      <Descriptions.Item label="性别">{resumeData.basic_info.gender}</Descriptions.Item>
+                    )}
+                    {resumeData.basic_info.location && (
+                      <Descriptions.Item label="所在地">{resumeData.basic_info.location}</Descriptions.Item>
+                    )}
+                  </Descriptions>
+                </Panel>
               )}
 
               {/* 技能 */}
               {resumeData.skills && resumeData.skills.length > 0 && (
-                <div>
-                  <Text strong style={{ fontSize: 16 }}>🛠 技能</Text>
-                  <div style={{ marginTop: 8, marginLeft: 16 }}>
-                    <Space wrap>
-                      {resumeData.skills.map((skill: any, idx: number) => (
-                        <Tag key={idx} color="blue">
-                          {typeof skill === 'string' ? skill : skill.name}
-                        </Tag>
-                      ))}
-                    </Space>
-                  </div>
-                </div>
+                <Panel header={`🛠 技能 (${resumeData.skills.length})`} key="skills">
+                  <Space wrap>
+                    {resumeData.skills.map((skill: any, idx: number) => (
+                      <Tag key={idx} color="blue">
+                        {typeof skill === 'string' ? skill : skill.name}
+                        {skill.level && <Text type="secondary" style={{ marginLeft: 4 }}>({skill.level})</Text>}
+                      </Tag>
+                    ))}
+                  </Space>
+                </Panel>
               )}
 
               {/* 教育经历 */}
               {resumeData.education && resumeData.education.length > 0 && (
-                <div>
-                  <Text strong style={{ fontSize: 16 }}>🎓 教育经历</Text>
-                  <div style={{ marginTop: 8, marginLeft: 16 }}>
+                <Panel header={`🎓 教育经历 (${resumeData.education.length})`} key="education">
+                  <Space direction="vertical" size="middle" style={{ width: '100%' }}>
                     {resumeData.education.map((edu: any, idx: number) => (
-                      <div key={idx} style={{ marginBottom: 8 }}>
-                        <Text strong>{edu.school}</Text>
-                        {edu.major && <Text type="secondary"> · {edu.major}</Text>}
-                        {edu.degree && <Tag style={{ marginLeft: 8 }}>{edu.degree}</Tag>}
-                      </div>
+                      <Card key={idx} size="small" type="inner">
+                        <Descriptions column={2} size="small">
+                          {edu.school && (
+                            <Descriptions.Item label="学校">{edu.school}</Descriptions.Item>
+                          )}
+                          {edu.major && (
+                            <Descriptions.Item label="专业">{edu.major}</Descriptions.Item>
+                          )}
+                          {edu.degree && (
+                            <Descriptions.Item label="学历">{edu.degree}</Descriptions.Item>
+                          )}
+                          {(edu.start_date || edu.end_date) && (
+                            <Descriptions.Item label="时间">
+                              {edu.start_date || '?'} - {edu.end_date || '至今'}
+                            </Descriptions.Item>
+                          )}
+                          {edu.gpa && (
+                            <Descriptions.Item label="GPA">{edu.gpa}</Descriptions.Item>
+                          )}
+                          {edu.description && (
+                            <Descriptions.Item label="描述" span={2}>{edu.description}</Descriptions.Item>
+                          )}
+                        </Descriptions>
+                      </Card>
                     ))}
-                  </div>
-                </div>
+                  </Space>
+                </Panel>
               )}
 
               {/* 工作经历 */}
               {resumeData.work_experience && resumeData.work_experience.length > 0 && (
-                <div>
-                  <Text strong style={{ fontSize: 16 }}>🏢 工作经历</Text>
-                  <div style={{ marginTop: 8, marginLeft: 16 }}>
+                <Panel header={`🏢 工作经历 (${resumeData.work_experience.length})`} key="work">
+                  <Space direction="vertical" size="middle" style={{ width: '100%' }}>
                     {resumeData.work_experience.map((work: any, idx: number) => (
-                      <div key={idx} style={{ marginBottom: 12 }}>
-                        <div>
-                          <Text strong>{work.company}</Text>
-                          {work.position && <Text type="secondary"> · {work.position}</Text>}
-                        </div>
-                        {work.description && (
-                          <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
-                            {work.description}
-                          </Text>
+                      <Card key={idx} size="small" type="inner">
+                        <Descriptions column={2} size="small">
+                          {work.company && (
+                            <Descriptions.Item label="公司">{work.company}</Descriptions.Item>
+                          )}
+                          {work.position && (
+                            <Descriptions.Item label="职位">{work.position}</Descriptions.Item>
+                          )}
+                          {(work.start_date || work.end_date) && (
+                            <Descriptions.Item label="时间" span={2}>
+                              {work.start_date || '?'} - {work.end_date || '至今'}
+                            </Descriptions.Item>
+                          )}
+                          {work.description && (
+                            <Descriptions.Item label="工作内容" span={2}>
+                              {work.description}
+                            </Descriptions.Item>
+                          )}
+                        </Descriptions>
+                        {work.achievements && work.achievements.length > 0 && (
+                          <div style={{ marginTop: 12 }}>
+                            <Text strong>工作成果：</Text>
+                            <ul style={{ margin: '8px 0 0 0', paddingLeft: 20 }}>
+                              {work.achievements.map((achievement: string, aIdx: number) => (
+                                <li key={aIdx}>{achievement}</li>
+                              ))}
+                            </ul>
+                          </div>
                         )}
-                      </div>
+                      </Card>
                     ))}
-                  </div>
-                </div>
+                  </Space>
+                </Panel>
               )}
 
               {/* 项目经历 */}
               {resumeData.project_experience && resumeData.project_experience.length > 0 && (
-                <div>
-                  <Text strong style={{ fontSize: 16 }}>📦 项目经历</Text>
-                  <div style={{ marginTop: 8, marginLeft: 16 }}>
+                <Panel header={`📦 项目经历 (${resumeData.project_experience.length})`} key="project">
+                  <Space direction="vertical" size="middle" style={{ width: '100%' }}>
                     {resumeData.project_experience.map((project: any, idx: number) => (
-                      <div key={idx} style={{ marginBottom: 12 }}>
-                        <div>
-                          <Text strong>{project.name}</Text>
-                          {project.role && <Text type="secondary"> · {project.role}</Text>}
-                        </div>
-                        {project.description && (
-                          <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
-                            {project.description}
-                          </Text>
+                      <Card key={idx} size="small" type="inner">
+                        <Descriptions column={2} size="small">
+                          {project.name && (
+                            <Descriptions.Item label="项目名称">{project.name}</Descriptions.Item>
+                          )}
+                          {project.role && (
+                            <Descriptions.Item label="项目角色">{project.role}</Descriptions.Item>
+                          )}
+                          {(project.start_date || project.end_date) && (
+                            <Descriptions.Item label="时间" span={2}>
+                              {project.start_date || '?'} - {project.end_date || '至今'}
+                            </Descriptions.Item>
+                          )}
+                          {project.description && (
+                            <Descriptions.Item label="项目描述" span={2}>
+                              {project.description}
+                            </Descriptions.Item>
+                          )}
+                        </Descriptions>
+                        {project.tech_stack && project.tech_stack.length > 0 && (
+                          <div style={{ marginTop: 12 }}>
+                            <Text strong>技术栈：</Text>
+                            <div style={{ marginTop: 8 }}>
+                              <Space wrap>
+                                {project.tech_stack.map((tech: string, tIdx: number) => (
+                                  <Tag key={tIdx} color="geekblue">{tech}</Tag>
+                                ))}
+                              </Space>
+                            </div>
+                          </div>
                         )}
-                      </div>
+                        {project.achievements && project.achievements.length > 0 && (
+                          <div style={{ marginTop: 12 }}>
+                            <Text strong>项目成果：</Text>
+                            <ul style={{ margin: '8px 0 0 0', paddingLeft: 20 }}>
+                              {project.achievements.map((achievement: string, aIdx: number) => (
+                                <li key={aIdx}>{achievement}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </Card>
                     ))}
-                  </div>
-                </div>
+                  </Space>
+                </Panel>
               )}
-            </Space>
+            </Collapse>
           </Card>
         )}
 
@@ -667,74 +745,6 @@ const ResumeDiagnosis: React.FC = () => {
           </Card>
         )}
 
-        {/* 简历详细信息 */}
-        {(() => {
-          let d = resumeData;
-          if (resumeData?.parsed_data && typeof resumeData.parsed_data === 'object') {
-            d = resumeData.parsed_data;
-          }
-          return d && (
-          <Card title="简历详细信息">
-            <Collapse>
-              {d.basic_info && (
-                <Panel header="基本信息" key="basic">
-                  <Descriptions column={2}>
-                    <Descriptions.Item label="姓名">{d.basic_info.name}</Descriptions.Item>
-                    <Descriptions.Item label="电话">{d.basic_info.phone}</Descriptions.Item>
-                    <Descriptions.Item label="邮箱">{d.basic_info.email}</Descriptions.Item>
-                    <Descriptions.Item label="求职意向">{d.basic_info.job_intention}</Descriptions.Item>
-                  </Descriptions>
-                </Panel>
-              )}
-
-              {d.education && d.education.length > 0 && (
-                <Panel header={`教育经历 (${d.education.length})`} key="education">
-                  <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                    {d.education.map((edu, idx) => (
-                      <Card key={idx} size="small" type="inner">
-                        <Descriptions column={2}>
-                          <Descriptions.Item label="学校">{edu.school}</Descriptions.Item>
-                          <Descriptions.Item label="专业">{edu.major}</Descriptions.Item>
-                          <Descriptions.Item label="学历">{edu.degree}</Descriptions.Item>
-                          <Descriptions.Item label="时间">{edu.start_date} - {edu.end_date}</Descriptions.Item>
-                        </Descriptions>
-                      </Card>
-                    ))}
-                  </Space>
-                </Panel>
-              )}
-
-              {d.work_experience && d.work_experience.length > 0 && (
-                <Panel header={`工作经历 (${d.work_experience.length})`} key="work">
-                  <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                    {d.work_experience.map((w, idx) => (
-                      <Card key={idx} size="small" type="inner">
-                        <Descriptions column={2}>
-                          <Descriptions.Item label="公司">{w.company}</Descriptions.Item>
-                          <Descriptions.Item label="职位">{w.position}</Descriptions.Item>
-                          <Descriptions.Item label="时间">{w.start_date} - {w.end_date || '至今'}</Descriptions.Item>
-                        </Descriptions>
-                      </Card>
-                    ))}
-                  </Space>
-                </Panel>
-              )}
-
-              {d.skills && d.skills.length > 0 && (
-                <Panel header={`技能标签 (${d.skills.length})`} key="skills">
-                  <Space wrap>
-                    {d.skills.map((skill, idx) => (
-                      <Tag key={idx} color="blue">
-                        {typeof skill === 'string' ? skill : skill.name}
-                      </Tag>
-                    ))}
-                  </Space>
-                </Panel>
-              )}
-            </Collapse>
-          </Card>
-          );
-        })()}
       </Space>
 
       {/* 保存版本弹窗 */}

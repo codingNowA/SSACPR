@@ -178,7 +178,7 @@ const MockInterview: React.FC = () => {
           message="使用提示"
           description={
             <ul style={{ margin: 0, paddingLeft: 20 }}>
-              <li>从题库中选择问题或输入自定义问题</li>
+              <li>从题库中选择面试问题进行练习</li>
               <li>可以按分类和难度筛选题目</li>
               <li>认真输入你的答案，尽量详细和完整</li>
               <li>AI会从完整性、逻辑性、专业性等维度评估你的答案</li>
@@ -270,29 +270,6 @@ const MockInterview: React.FC = () => {
                       ))
                     )}
                   </div>
-                </div>
-
-                <Divider style={{ margin: '8px 0' }}>或</Divider>
-
-                <div>
-                  <Text strong>或输入自定义问题：</Text>
-                  <Input
-                    placeholder="例如：请介绍一下你最近的项目经验"
-                    value={customQuestion}
-                    onChange={(e) => {
-                      setCustomQuestion(e.target.value);
-                      setQuestion(e.target.value);
-                      if (e.target.value) {
-                        setShowQuestionList(false);
-                      }
-                    }}
-                    onPressEnter={() => {
-                      if (customQuestion) {
-                        setShowQuestionList(false);
-                      }
-                    }}
-                    style={{ marginTop: 8 }}
-                  />
                 </div>
               </>
             ) : (

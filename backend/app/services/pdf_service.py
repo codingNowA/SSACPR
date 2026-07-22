@@ -105,8 +105,12 @@ class ResumePDFGenerator:
                 info_data.append(['邮箱:', basic_info['email']])
             if basic_info.get('job_intention'):
                 info_data.append(['求职意向:', basic_info['job_intention']])
-            if basic_info.get('current_location'):
-                info_data.append(['所在地:', basic_info['current_location']])
+            if basic_info.get('age'):
+                info_data.append(['年龄:', str(basic_info['age'])])
+            if basic_info.get('gender'):
+                info_data.append(['性别:', basic_info['gender']])
+            if basic_info.get('location'):
+                info_data.append(['所在地:', basic_info['location']])
 
             if info_data:
                 table = Table(info_data, colWidths=[3*cm, 14*cm])
@@ -131,6 +135,8 @@ class ResumePDFGenerator:
                 degree = edu.get('degree', '')
                 start_date = edu.get('start_date', '')
                 end_date = edu.get('end_date', '')
+                gpa = edu.get('gpa', '')
+                description = edu.get('description', '')
 
                 text = f"<b>{school}</b>"
                 if major:
@@ -139,6 +145,10 @@ class ResumePDFGenerator:
                     text += f" · {degree}"
                 if start_date or end_date:
                     text += f"<br/><font color='grey'>{start_date} - {end_date}</font>"
+                if gpa:
+                    text += f"<br/>GPA: {gpa}"
+                if description:
+                    text += f"<br/>{description}"
 
                 story.append(Paragraph(text, body_style))
             story.append(Spacer(1, 0.3*cm))
@@ -153,6 +163,7 @@ class ResumePDFGenerator:
                 start_date = work.get('start_date', '')
                 end_date = work.get('end_date', '')
                 description = work.get('description', '')
+                achievements = work.get('achievements', [])
 
                 text = f"<b>{company}</b>"
                 if position:
@@ -163,6 +174,12 @@ class ResumePDFGenerator:
                     text += f"<br/>{description}"
 
                 story.append(Paragraph(text, body_style))
+
+                # 添加成果列表
+                if achievements:
+                    for achievement in achievements:
+                        story.append(Paragraph(f"• {achievement}", body_style))
+
                 story.append(Spacer(1, 0.2*cm))
 
         # 项目经验
@@ -175,6 +192,8 @@ class ResumePDFGenerator:
                 start_date = project.get('start_date', '')
                 end_date = project.get('end_date', '')
                 description = project.get('description', '')
+                tech_stack = project.get('tech_stack', [])
+                achievements = project.get('achievements', [])
 
                 text = f"<b>{name}</b>"
                 if role:
@@ -184,7 +203,18 @@ class ResumePDFGenerator:
                 if description:
                     text += f"<br/>{description}"
 
+                # 添加技术栈
+                if tech_stack:
+                    tech_text = ' · '.join(tech_stack)
+                    text += f"<br/><font color='blue'>技术栈: {tech_text}</font>"
+
                 story.append(Paragraph(text, body_style))
+
+                # 添加成果列表
+                if achievements:
+                    for achievement in achievements:
+                        story.append(Paragraph(f"• {achievement}", body_style))
+
                 story.append(Spacer(1, 0.2*cm))
 
         # 技能特长
@@ -205,12 +235,6 @@ class ResumePDFGenerator:
                 story.append(Paragraph(skills_text, body_style))
             story.append(Spacer(1, 0.3*cm))
 
-        # 自我评价
-        self_evaluation = parsed_data.get('self_evaluation', '')
-        if self_evaluation:
-            story.append(Paragraph("自我评价", heading_style))
-            story.append(Paragraph(self_evaluation, body_style))
-
         # 构建PDF
         doc.build(story)
 
@@ -220,7 +244,7 @@ class ResumePDFGenerator:
 
         return pdf_data
 
-    def generate_resume_pdf_with_diagnosis(self, parsed_data: dict, scores: dict, version_name: str) -> bytes:
+    def generate_resume_pdf_with_diagnosis(self, parsed_data: dict, scores: dict, version_name: str, optimization: dict = None) -> bytes:
         """
         生成包含诊断结果的简历PDF
 
@@ -228,6 +252,7 @@ class ResumePDFGenerator:
             parsed_data: 简历结构化数据
             scores: 诊断评分结果
             version_name: 版本名称
+            optimization: 优化建议数据（可选）
 
         Returns:
             PDF文件的字节数据
@@ -351,6 +376,49 @@ class ResumePDFGenerator:
                     story.append(Paragraph(f"{i}. {feedback}", body_style))
             story.append(Spacer(1, 0.5*cm))
 
+        # 详细优化建议（从 optimization.general_suggestions 中提取）
+        if optimization and optimization.get('general_suggestions'):
+            story.append(Paragraph("详细优化建议", heading_style))
+            general_suggestions = optimization['general_suggestions']
+
+            for i, suggestion in enumerate(general_suggestions[:8], 1):  # 最多显示8条
+                # 优先级标签
+                priority = suggestion.get('priority', '中')
+                priority_colors = {'高': '#f5222d', '中': '#fa8c16', '低': '#1890ff'}
+                priority_color = priority_colors.get(priority, '#1890ff')
+
+                # 标题和优先级
+                title_text = f"<font color='{priority_color}'>[{priority}]</font> <b>{suggestion.get('title', '')}</b>"
+                story.append(Paragraph(title_text, body_style))
+
+                # 类别和说明
+                category = suggestion.get('category', '')
+                description = suggestion.get('description', '')
+                if category or description:
+                    info_text = f"类别: {category} | {description}" if category else description
+                    story.append(Paragraph(info_text, small_style))
+
+                # 当前内容
+                current_content = suggestion.get('current_content')
+                if current_content and current_content != '无':
+                    story.append(Paragraph("<font color='#666'>当前内容:</font>", small_style))
+                    story.append(Paragraph(f"<font color='#d32f2f'>{current_content}</font>", body_style))
+
+                # 建议内容
+                suggested_content = suggestion.get('suggested_content', '')
+                if suggested_content:
+                    story.append(Paragraph("<font color='#666'>建议修改为:</font>", small_style))
+                    story.append(Paragraph(f"<font color='#388e3c'>{suggested_content}</font>", body_style))
+
+                # 原因
+                reason = suggestion.get('reason', '')
+                if reason:
+                    story.append(Paragraph(f"<font color='#666'>原因: {reason}</font>", small_style))
+
+                story.append(Spacer(1, 0.3*cm))
+
+            story.append(Spacer(1, 0.3*cm))
+
         # 分隔线
         story.append(Spacer(1, 0.3*cm))
         story.append(Paragraph("<hr/>", body_style))
@@ -373,6 +441,10 @@ class ResumePDFGenerator:
                 info_data.append(['邮箱:', basic_info['email']])
             if basic_info.get('job_intention'):
                 info_data.append(['求职意向:', basic_info['job_intention']])
+            if basic_info.get('age'):
+                info_data.append(['年龄:', str(basic_info['age'])])
+            if basic_info.get('gender'):
+                info_data.append(['性别:', basic_info['gender']])
             if basic_info.get('location'):
                 info_data.append(['所在地:', basic_info['location']])
 
@@ -399,6 +471,8 @@ class ResumePDFGenerator:
                 degree = edu.get('degree', '')
                 start_date = edu.get('start_date', '')
                 end_date = edu.get('end_date', '')
+                gpa = edu.get('gpa', '')
+                description = edu.get('description', '')
 
                 text = f"<b>{school}</b>"
                 if major:
@@ -407,6 +481,10 @@ class ResumePDFGenerator:
                     text += f" · {degree}"
                 if start_date or end_date:
                     text += f"<br/><font color='grey'>{start_date} - {end_date}</font>"
+                if gpa:
+                    text += f"<br/>GPA: {gpa}"
+                if description:
+                    text += f"<br/>{description}"
 
                 story.append(Paragraph(text, body_style))
             story.append(Spacer(1, 0.3*cm))
@@ -421,6 +499,7 @@ class ResumePDFGenerator:
                 start_date = work.get('start_date', '')
                 end_date = work.get('end_date', '')
                 description = work.get('description', '')
+                achievements = work.get('achievements', [])
 
                 text = f"<b>{company}</b>"
                 if position:
@@ -431,6 +510,12 @@ class ResumePDFGenerator:
                     text += f"<br/>{description}"
 
                 story.append(Paragraph(text, body_style))
+
+                # 添加成果列表
+                if achievements:
+                    for achievement in achievements:
+                        story.append(Paragraph(f"• {achievement}", body_style))
+
                 story.append(Spacer(1, 0.2*cm))
 
         # 项目经验
@@ -443,6 +528,8 @@ class ResumePDFGenerator:
                 start_date = project.get('start_date', '')
                 end_date = project.get('end_date', '')
                 description = project.get('description', '')
+                tech_stack = project.get('tech_stack', [])
+                achievements = project.get('achievements', [])
 
                 text = f"<b>{name}</b>"
                 if role:
@@ -452,7 +539,18 @@ class ResumePDFGenerator:
                 if description:
                     text += f"<br/>{description}"
 
+                # 添加技术栈
+                if tech_stack:
+                    tech_text = ' · '.join(tech_stack)
+                    text += f"<br/><font color='blue'>技术栈: {tech_text}</font>"
+
                 story.append(Paragraph(text, body_style))
+
+                # 添加成果列表
+                if achievements:
+                    for achievement in achievements:
+                        story.append(Paragraph(f"• {achievement}", body_style))
+
                 story.append(Spacer(1, 0.2*cm))
 
         # 技能特长

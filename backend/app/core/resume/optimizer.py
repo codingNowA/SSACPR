@@ -225,10 +225,12 @@ class ResumeOptimizer:
 2. 时间格式是否统一
 3. 描述是否详细充分
 
+**重要**：如果要指出具体问题，current_content 应该从用户简历中**真实提取**原文，不要编造示例。如果无法获取真实内容，将 current_content 设为 null。
+
 请以JSON格式返回建议列表，每条建议包含：
 - title: 建议标题
 - description: 问题描述
-- current_content: 当前内容示例
+- current_content: 当前内容示例（从简历真实提取，或设为 null）
 - suggested_content: 建议修改后的内容
 - reason: 修改原因
 """
@@ -241,7 +243,12 @@ class ResumeOptimizer:
 工作经历数量：{len(data.work_experience)}
 项目经验数量：{len(data.project_experience)}
 
-请给出2-3条最重要的专业性改进建议。"""
+简历实际内容示例：
+工作经历：{json.dumps([{"company": exp.company, "position": exp.position, "time": f"{exp.start_date} - {exp.end_date}", "achievements": exp.achievements[:2] if exp.achievements else []} for exp in data.work_experience[:2]], ensure_ascii=False)}
+
+项目经验：{json.dumps([{"name": proj.name, "time": f"{proj.start_date} - {proj.end_date}", "achievements": proj.achievements[:2] if proj.achievements else []} for proj in data.project_experience[:2]], ensure_ascii=False)}
+
+请给出2-3条最重要的专业性改进建议，current_content 必须从上述实际内容中提取。"""
 
         try:
             logger.warning(f"[LLM] 调用大模型生成专业性建议...")
@@ -318,10 +325,12 @@ class ResumeOptimizer:
 2. 给出具体的量化改写建议
 3. 提供真实可信的量化示例
 
+**重要**：current_content 必须从用户提供的"简历中缺乏量化的描述示例"中**原文摘录**，不要自己编造内容。
+
 请以JSON格式返回建议列表，每条建议包含：
 - title: 建议标题
 - description: 问题描述
-- current_content: 当前非量化的描述
+- current_content: 当前非量化的描述（必须从提供的示例中原文摘录）
 - suggested_content: 量化后的描述建议
 - reason: 为什么要量化
 """
@@ -423,10 +432,12 @@ class ResumeOptimizer:
 3. 项目成果的具体性和量化
 4. 个人职责和贡献的清晰度
 
+**重要**：current_content 必须从用户提供的"当前项目信息"中**真实提取**，不要编造内容。
+
 请以JSON格式返回建议列表，每条建议包含：
 - title: 建议标题
 - description: 问题描述
-- current_content: 当前的项目描述示例
+- current_content: 当前的项目描述示例（从提供的实际项目中提取）
 - suggested_content: 优化后的描述
 - reason: 优化理由
 """
