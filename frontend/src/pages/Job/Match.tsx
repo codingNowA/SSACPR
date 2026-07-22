@@ -78,7 +78,6 @@ const JobMatch: React.FC = () => {
         use_local_model: useLocalModel, // 传递匹配模式
       });
       setMatchResult(result);
-      message.success(`匹配完成！共找到 ${result.total} 个岗位`);
     } catch (error: any) {
       message.error(error || '匹配失败');
     } finally {

@@ -62,18 +62,17 @@ dev: up
 up:
 	@echo ===== 启动 SSACPR 系统 =====
 	@echo [1/3] 启动 Docker 服务...
-	$(COMPOSE) up -d --build
+	@$(COMPOSE) up -d --build
 	@echo [2/3] 等待服务就绪...
-	@ping 127.0.0.1 -n 16 >nul 2>&1 || sleep 15 2>/dev/null || echo ""
+	@timeout /t 15 /nobreak >nul 2>&1 || exit 0
 	@echo [3/3] 运行数据库迁移...
-	@$(MAKE) migrate
+	@python scripts/migrate.py
+	@bash scripts/load_questions.sh 2>nul || echo 面试题数据检查完成
 	@echo ===== 启动完成 =====
-	@echo
 	@echo 访问地址:
 	@echo   API 文档: http://localhost:8000/docs
 	@echo   前端:     http://localhost:5173
 	@echo   Nginx:    http://localhost:8080
-	@echo
 	@echo 提示: 数据库和测试数据会在首次启动时自动初始化
 
 # 停止所有服务
@@ -109,6 +108,7 @@ init-db:
 # 运行数据库迁移（跨平台）
 migrate:
 	@python scripts/migrate.py
+	@bash scripts/load_questions.sh 2>nul || echo "面试题数据检查完成"
 
 # 填充测试数据
 seed-data:
@@ -160,13 +160,14 @@ status:
 restart:
 	@echo "===== 重启 SSACPR 系统 ====="
 	@echo "[1/4] 停止服务..."
-	$(COMPOSE) down
+	@$(COMPOSE) down
 	@echo "[2/4] 重新构建并启动..."
-	$(COMPOSE) up -d --build
+	@$(COMPOSE) up -d --build
 	@echo "[3/4] 等待服务就绪..."
-	@ping 127.0.0.1 -n 16 >nul 2>&1 || sleep 15 2>/dev/null || echo ""
+	@timeout /t 15 /nobreak >nul 2>&1 || exit 0
 	@echo "[4/4] 运行数据库迁移..."
-	@python scripts/migrate.py >nul 2>&1 || echo "[提示] 迁移已执行"
+	@python scripts/migrate.py
+	@bash scripts/load_questions.sh 2>nul || echo 面试题数据检查完成
 	@echo "===== 重启完成 ====="
 
 # 查看后端日志

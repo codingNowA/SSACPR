@@ -401,7 +401,7 @@ async def download_snapshot_pdf(version_id: int, _user: dict = Depends(get_curre
         async with pool.acquire() as conn:
             # 获取版本数据和诊断结果
             version = await conn.fetchrow(
-                "SELECT id, version_name, parsed_data, scores FROM resume_versions WHERE id = $1",
+                "SELECT id, version_name, parsed_data, scores, optimization FROM resume_versions WHERE id = $1",
                 version_id,
             )
 
@@ -417,6 +417,10 @@ async def download_snapshot_pdf(version_id: int, _user: dict = Depends(get_curre
             if isinstance(scores, str):
                 scores = json.loads(scores)
 
+            optimization = version["optimization"]
+            if isinstance(optimization, str):
+                optimization = json.loads(optimization)
+
             version_name = version["version_name"]
 
             # 生成PDF（根据是否有诊断结果选择不同的生成方式）
@@ -424,7 +428,7 @@ async def download_snapshot_pdf(version_id: int, _user: dict = Depends(get_curre
                 if scores:
                     # 有诊断结果，生成包含诊断的PDF
                     pdf_bytes = pdf_generator.generate_resume_pdf_with_diagnosis(
-                        parsed_data, scores, version_name
+                        parsed_data, scores, version_name, optimization
                     )
                 else:
                     # 没有诊断结果，只生成简历内容的PDF

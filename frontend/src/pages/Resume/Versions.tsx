@@ -47,7 +47,6 @@ const SCORE_ITEMS = [
   { key: 'professionalism', label: '专业性', icon: '💼' },
   { key: 'quantification', label: '量化程度', icon: '📊' },
   { key: 'project_depth', label: '项目深度', icon: '🔬' },
-  { key: 'job_match', label: '岗位匹配', icon: '🎯' },
 ];
 
 /** 从 scores 对象中提取分数值（兼容嵌套对象和扁平数值） */

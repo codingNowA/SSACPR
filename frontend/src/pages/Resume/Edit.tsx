@@ -73,14 +73,19 @@ const ResumeEdit: React.FC = () => {
 
       // 填充表单
       form.setFieldsValue({
-        name: data.name || basicInfo.name,
-        phone: data.phone || basicInfo.phone,
-        email: data.email || basicInfo.email,
+        basic_info: {
+          name: data.name || basicInfo.name,
+          phone: data.phone || basicInfo.phone,
+          email: data.email || basicInfo.email,
+          job_intention: basicInfo.job_intention,
+          age: basicInfo.age,
+          gender: basicInfo.gender,
+          location: basicInfo.location,
+        },
         education: data.education || [],
         work_experience: data.work_experience || [],
         project_experience: data.project_experience || [],
         skills: skillsStr,
-        self_evaluation: data.self_evaluation,
       });
     } catch (error: any) {
       message.error(error || '加载简历数据失败');
@@ -107,15 +112,18 @@ const ResumeEdit: React.FC = () => {
       // 构造标准的 parsed_data 格式（嵌套结构）
       const structuredData = {
         basic_info: {
-          name: values.name,
-          phone: values.phone,
-          email: values.email,
+          name: values.basic_info?.name,
+          phone: values.basic_info?.phone,
+          email: values.basic_info?.email,
+          job_intention: values.basic_info?.job_intention,
+          age: values.basic_info?.age,
+          gender: values.basic_info?.gender,
+          location: values.basic_info?.location,
         },
         education: values.education || [],
         work_experience: values.work_experience || [],
         project_experience: values.project_experience || [],
         skills: skillTags,
-        self_evaluation: values.self_evaluation,
       };
 
       // 更新简历数据
@@ -157,9 +165,13 @@ const ResumeEdit: React.FC = () => {
       const parsedData = {
         basic_info: {
           ...(resumeData?.basic_info || {}),
-          name: values.name,
-          phone: values.phone,
-          email: values.email,
+          name: values.basic_info?.name,
+          phone: values.basic_info?.phone,
+          email: values.basic_info?.email,
+          job_intention: values.basic_info?.job_intention,
+          age: values.basic_info?.age,
+          gender: values.basic_info?.gender,
+          location: values.basic_info?.location,
         },
         education: values.education || [],
         work_experience: values.work_experience || [],
@@ -233,25 +245,52 @@ const ResumeEdit: React.FC = () => {
             <Card title="基本信息" size="small" style={{ marginBottom: 16 }}>
               <Row gutter={16}>
                 <Col span={8}>
-                  <Form.Item label="姓名" name="name" rules={[{ required: true, message: '请输入姓名' }]}>
+                  <Form.Item label="姓名" name={['basic_info', 'name']} rules={[{ required: true, message: '请输入姓名' }]}>
                     <Input placeholder="请输入姓名" />
                   </Form.Item>
                 </Col>
                 <Col span={8}>
-                  <Form.Item label="手机号" name="phone" rules={[{ required: true, message: '请输入手机号' }]}>
+                  <Form.Item label="手机号" name={['basic_info', 'phone']} rules={[{ required: true, message: '请输入手机号' }]}>
                     <Input placeholder="请输入手机号" />
                   </Form.Item>
                 </Col>
                 <Col span={8}>
                   <Form.Item
                     label="邮箱"
-                    name="email"
+                    name={['basic_info', 'email']}
                     rules={[
                       { required: true, message: '请输入邮箱' },
                       { pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: '邮箱格式不正确' }
                     ]}
                   >
                     <Input placeholder="请输入邮箱" />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Form.Item label="求职意向" name={['basic_info', 'job_intention']}>
+                    <Input placeholder="例如：Java后端开发工程师" />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item label="年龄" name={['basic_info', 'age']}>
+                    <Input type="number" placeholder="例如：25" />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item label="性别" name={['basic_info', 'gender']}>
+                    <Select placeholder="选择性别">
+                      <Option value="男">男</Option>
+                      <Option value="女">女</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Form.Item label="所在地" name={['basic_info', 'location']}>
+                    <Input placeholder="例如：成都" />
                   </Form.Item>
                 </Col>
               </Row>
@@ -306,6 +345,18 @@ const ResumeEdit: React.FC = () => {
                               </Form.Item>
                             </Col>
                           </Row>
+                          <Row gutter={16}>
+                            <Col span={8}>
+                              <Form.Item {...field} name={[field.name, 'gpa']} label="GPA">
+                                <Input placeholder="例如：3.8" />
+                              </Form.Item>
+                            </Col>
+                            <Col span={16}>
+                              <Form.Item {...field} name={[field.name, 'description']} label="描述">
+                                <TextArea rows={2} placeholder="主修课程、获奖情况等..." />
+                              </Form.Item>
+                            </Col>
+                          </Row>
                         </Space>
                       </Card>
                     ))}
@@ -356,7 +407,21 @@ const ResumeEdit: React.FC = () => {
                             </Col>
                           </Row>
                           <Form.Item {...field} name={[field.name, 'description']} label="工作描述">
-                            <TextArea rows={4} placeholder="描述你的工作内容和成就..." />
+                            <TextArea rows={4} placeholder="描述你的工作内容和职责..." />
+                          </Form.Item>
+                          <Form.Item {...field} name={[field.name, 'achievements']} label="工作成果">
+                            <Select
+                              mode="tags"
+                              placeholder="输入成果后按回车添加，可添加多条"
+                              style={{ width: '100%' }}
+                              tokenSeparators={[',']}
+                              open={false}
+                              onChange={(values) => {
+                                // 过滤掉空值
+                                const filtered = values.filter((v: string) => v && v.trim());
+                                form.setFieldValue(['work_experience', field.name, 'achievements'], filtered);
+                              }}
+                            />
                           </Form.Item>
                         </Space>
                       </Card>
@@ -410,6 +475,34 @@ const ResumeEdit: React.FC = () => {
                           <Form.Item {...field} name={[field.name, 'description']} label="项目描述">
                             <TextArea rows={4} placeholder="描述项目背景、你的职责和成果..." />
                           </Form.Item>
+                          <Form.Item {...field} name={[field.name, 'tech_stack']} label="技术栈">
+                            <Select
+                              mode="tags"
+                              placeholder="输入技术后按回车添加，例如：Java, Spring Boot, MySQL"
+                              style={{ width: '100%' }}
+                              tokenSeparators={[',']}
+                              open={false}
+                              onChange={(values) => {
+                                // 过滤掉空值
+                                const filtered = values.filter((v: string) => v && v.trim());
+                                form.setFieldValue(['project_experience', field.name, 'tech_stack'], filtered);
+                              }}
+                            />
+                          </Form.Item>
+                          <Form.Item {...field} name={[field.name, 'achievements']} label="项目成果">
+                            <Select
+                              mode="tags"
+                              placeholder="输入成果后按回车添加，可添加多条"
+                              style={{ width: '100%' }}
+                              tokenSeparators={[',']}
+                              open={false}
+                              onChange={(values) => {
+                                // 过滤掉空值
+                                const filtered = values.filter((v: string) => v && v.trim());
+                                form.setFieldValue(['project_experience', field.name, 'achievements'], filtered);
+                              }}
+                            />
+                          </Form.Item>
                         </Space>
                       </Card>
                     ))}
@@ -422,20 +515,13 @@ const ResumeEdit: React.FC = () => {
             </Card>
 
             {/* 技能特长 */}
-            <Card title="技能特长" size="small" style={{ marginBottom: 16 }}>
+            <Card title="技能特长" size="small">
               <Form.Item
                 label="技能列表"
                 name="skills"
                 extra="多个技能用逗号分隔，如：Java, Python, React"
               >
                 <TextArea rows={3} placeholder="请输入技能，用逗号分隔" />
-              </Form.Item>
-            </Card>
-
-            {/* 自我评价 */}
-            <Card title="自我评价" size="small">
-              <Form.Item label="自我评价" name="self_evaluation">
-                <TextArea rows={6} placeholder="简要介绍你的优势、特点和职业目标..." />
               </Form.Item>
             </Card>
           </Form>
