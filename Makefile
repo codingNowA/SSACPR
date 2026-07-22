@@ -68,6 +68,9 @@ up:
 	@echo [3/3] 运行数据库迁移...
 	@python scripts/migrate.py
 	@bash scripts/load_questions.sh 2>nul || echo 面试题数据检查完成
+	@echo 检查并导入日志测试数据...
+	@docker cp scripts/seed_logs.sql career-postgres:/tmp/seed_logs.sql
+	@if [ $$(docker exec career-postgres psql -U career_user -d career_planning -t -c "SELECT COUNT(*) FROM logs;" | tr -d ' ') -eq 0 ]; then docker exec career-postgres psql -U career_user -d career_planning -f /tmp/seed_logs.sql && echo 日志测试数据已导入; else echo 日志数据已存在，跳过导入; fi
 	@echo ===== 启动完成 =====
 	@echo 访问地址:
 	@echo   API 文档: http://localhost:8000/docs
@@ -168,6 +171,9 @@ restart:
 	@echo "[4/4] 运行数据库迁移..."
 	@python scripts/migrate.py
 	@bash scripts/load_questions.sh 2>nul || echo 面试题数据检查完成
+	@echo 检查并导入日志测试数据...
+	@docker cp scripts/seed_logs.sql career-postgres:/tmp/seed_logs.sql
+	@if [ $$(docker exec career-postgres psql -U career_user -d career_planning -t -c "SELECT COUNT(*) FROM logs;" | tr -d ' ') -eq 0 ]; then docker exec career-postgres psql -U career_user -d career_planning -f /tmp/seed_logs.sql && echo 日志测试数据已导入; else echo 日志数据已存在，跳过导入; fi
 	@echo "===== 重启完成 ====="
 
 # 查看后端日志
