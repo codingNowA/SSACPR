@@ -314,32 +314,30 @@ const InterviewExam: React.FC = () => {
   // ===== 开始界面 =====
   if (!examStarted) {
     return (
-      <div style={{ padding: '24px', maxWidth: '800px', margin: '0 auto' }}>
-        <Card>
-          <Space direction="vertical" size="large" style={{ width: '100%' }}>
-            <Title level={3}>🎯 模拟面试</Title>
-            <Paragraph>
-              系统将为您生成 <Text strong>{TOTAL_QUESTIONS} 道</Text>面试题，
-              第一题为自我介绍，其余根据您的简历技能智能匹配。
-              请认真作答，系统将自动评分并给出建议。
-            </Paragraph>
-            <Alert
-              message="面试提示"
-              description="请在一个安静的环境中进行，每道题尽量在2分钟内完成。回答时注意结构化表达。"
-              type="info"
-              showIcon
-            />
-            <Button
-              type="primary"
-              size="large"
-              onClick={loadQuestions}
-              loading={loading}
-              block
-            >
-              开始面试
-            </Button>
-          </Space>
-        </Card>
+      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <Title level={3}>🎯 模拟面试</Title>
+          <Paragraph>
+            系统将为您生成 <Text strong>{TOTAL_QUESTIONS} 道</Text>面试题，
+            第一题为自我介绍，其余根据您的简历技能智能匹配。
+            请认真作答，系统将自动评分并给出建议。
+          </Paragraph>
+          <Alert
+            message="面试提示"
+            description="请在一个安静的环境中进行，每道题尽量在2分钟内完成。回答时注意结构化表达。"
+            type="info"
+            showIcon
+          />
+          <Button
+            type="primary"
+            size="large"
+            onClick={loadQuestions}
+            loading={loading}
+            block
+          >
+            开始面试
+          </Button>
+        </Space>
       </div>
     );
   }
@@ -348,9 +346,8 @@ const InterviewExam: React.FC = () => {
   if (!examFinished) {
     const progress = ((currentQuestion + 1) / questions.length) * 100;
     return (
-      <div style={{ padding: '24px', maxWidth: '800px', margin: '0 auto' }}>
-        <Card>
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Space>
                 <Tag color="blue">第 {currentQuestion + 1} / {questions.length} 题</Tag>
@@ -396,10 +393,9 @@ const InterviewExam: React.FC = () => {
                 disabled={!currentAnswer.trim()}
               >
                 {currentQuestion < questions.length - 1 ? '下一题' : '提交面试'}
-              </Button>
-            </div>
-          </Space>
-        </Card>
+          </Button>
+        </div>
+      </Space>
       </div>
     );
   }
@@ -408,7 +404,7 @@ const InterviewExam: React.FC = () => {
   if (result) {
     const scoreColor = result.total_score >= 80 ? '#52c41a' : result.total_score >= 60 ? '#faad14' : '#f5222d';
     return (
-      <div style={{ padding: '24px', maxWidth: '900px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto' }}>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <Card>
             <Row gutter={16}>
@@ -502,22 +498,17 @@ const InterviewExam: React.FC = () => {
           </Card>
 
           <div style={{ textAlign: 'center' }}>
-            <Space>
-              <Button type="primary" onClick={() => {
-                setExamStarted(false);
-                setExamFinished(false);
-                setQuestions([]);
-                setAnswers([]);
-                setCurrentAnswer('');
-                setCurrentQuestion(0);
-                setResult(null);
-              }}>
-                再来一次
-              </Button>
-              <Button icon={<HomeOutlined />} onClick={() => navigate('/interview/mock')}>
-                返回面试
-              </Button>
-            </Space>
+            <Button type="primary" onClick={() => {
+              setExamStarted(false);
+              setExamFinished(false);
+              setQuestions([]);
+              setAnswers([]);
+              setCurrentAnswer('');
+              setCurrentQuestion(0);
+              setResult(null);
+            }}>
+              再来一次
+            </Button>
           </div>
         </Space>
       </div>

@@ -15,6 +15,9 @@ import {
   message,
   Progress,
   Tooltip,
+  Popover,
+  Descriptions,
+  Divider,
 } from 'antd';
 import {
   SearchOutlined,
@@ -117,7 +120,47 @@ const JobCenter: React.FC = () => {
       dataIndex: 'title',
       key: 'title',
       width: 200,
-      render: (text) => <Text strong>{text}</Text>,
+      render: (text, record) => (
+        <Popover
+          title={<Text strong style={{ fontSize: 16 }}>{record.title}</Text>}
+          content={
+            <div style={{ width: 400 }}>
+              <Descriptions column={1} size="small">
+                <Descriptions.Item label="公司">{record.company}</Descriptions.Item>
+                <Descriptions.Item label="地点">{record.location || '-'}</Descriptions.Item>
+                <Descriptions.Item label="行业">{record.industry || '-'}</Descriptions.Item>
+                <Descriptions.Item label="薪资">{record.salary_range || '-'}</Descriptions.Item>
+                <Descriptions.Item label="经验要求">{record.experience_required || '-'}</Descriptions.Item>
+                <Descriptions.Item label="学历要求">{record.education_required || '-'}</Descriptions.Item>
+              </Descriptions>
+              <Divider style={{ margin: '12px 0' }} />
+              <div>
+                <Text strong>岗位描述：</Text>
+                <div style={{ marginTop: 8, maxHeight: 200, overflowY: 'auto' }}>
+                  <Text type="secondary" style={{ fontSize: 13 }}>
+                    {record.description || '暂无描述'}
+                  </Text>
+                </div>
+              </div>
+              <Divider style={{ margin: '12px 0' }} />
+              <div>
+                <Text strong>任职要求：</Text>
+                <div style={{ marginTop: 8, maxHeight: 200, overflowY: 'auto' }}>
+                  <Text type="secondary" style={{ fontSize: 13 }}>
+                    {record.requirements || '暂无要求'}
+                  </Text>
+                </div>
+              </div>
+            </div>
+          }
+          trigger="hover"
+          placement="right"
+        >
+          <Text strong style={{ cursor: 'pointer', color: '#1890ff' }}>
+            {text}
+          </Text>
+        </Popover>
+      ),
     },
     {
       title: '公司',
@@ -160,15 +203,66 @@ const JobCenter: React.FC = () => {
       render: (_, record) => {
         if (!record.difficulty) return '-';
         const { total_score, level } = record.difficulty;
+
+        // 提取关键技能
+        const requirements = (record.requirements || '') + ' ' + (record.description || '');
+        const techKeywords = ['Java', 'Python', 'JavaScript', 'React', 'Vue', 'Spring', 'MySQL',
+                             'Redis', 'Docker', 'Kubernetes', 'Go', 'C++', '微服务', '分布式'];
+        const foundTechs = techKeywords.filter(tech =>
+          requirements.toLowerCase().includes(tech.toLowerCase())
+        );
+
+        // 经验描述
+        const expRequired = record.experience_required || '';
+        let expDesc = expRequired;
+        if (expRequired.includes('应届') || expRequired.includes('不限')) {
+          expDesc = '应届生可投递';
+        } else if (expRequired) {
+          expDesc = `需要${expRequired}工作经验`;
+        }
+
+        // 学历描述
+        const eduRequired = record.education_required || '';
+        let eduDesc = eduRequired;
+        if (eduRequired === '本科') {
+          eduDesc = '本科及以上';
+        } else if (eduRequired === '硕士' || eduRequired === '研究生') {
+          eduDesc = '硕士及以上';
+        } else if (eduRequired === '博士') {
+          eduDesc = '博士学历';
+        } else if (eduRequired === '大专' || eduRequired === '专科') {
+          eduDesc = '大专及以上';
+        } else if (eduRequired.includes('不限')) {
+          eduDesc = '学历不限';
+        }
+
         return (
           <Tooltip
             title={
-              <div>
-                <div>技能复杂度: {record.difficulty.dimensions.skill_complexity}</div>
-                <div>经验要求: {record.difficulty.dimensions.experience}</div>
-                <div>学历要求: {record.difficulty.dimensions.education}</div>
-                <div>薪资水平: {record.difficulty.dimensions.salary}</div>
-                <div>公司知名度: {record.difficulty.dimensions.company}</div>
+              <div style={{ maxWidth: 300 }}>
+                <div style={{ marginBottom: 8 }}>
+                  <strong>技能要求:</strong>
+                  <div style={{ marginTop: 4 }}>
+                    {foundTechs.length > 0 ? (
+                      foundTechs.map((tech, i) => (
+                        <Tag key={i} color="blue" style={{ marginBottom: 4 }}>
+                          {tech}
+                        </Tag>
+                      ))
+                    ) : (
+                      <span style={{ color: '#bfbfbf' }}>未识别到具体技术栈</span>
+                    )}
+                  </div>
+                </div>
+                <div style={{ marginBottom: 4 }}>
+                  <strong>经验要求:</strong> {expDesc}
+                </div>
+                <div style={{ marginBottom: 4 }}>
+                  <strong>学历要求:</strong> {eduDesc}
+                </div>
+                <div>
+                  <strong>薪资水平:</strong> {record.salary_range || '面议'}
+                </div>
               </div>
             }
           >
@@ -177,7 +271,7 @@ const JobCenter: React.FC = () => {
                 percent={total_score}
                 size="small"
                 strokeColor={getDifficultyColor(total_score)}
-                format={(p) => `${p}`}
+                showInfo={false}
               />
               <Tag color={getDifficultyColor(total_score)} icon={<TrophyOutlined />}>
                 {level}
@@ -186,16 +280,6 @@ const JobCenter: React.FC = () => {
           </Tooltip>
         );
       },
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 100,
-      render: (_, record) => (
-        <Button type="link" onClick={() => navigate(`/job/${record.id}`)}>
-          查看详情
-        </Button>
-      ),
     },
   ];
 

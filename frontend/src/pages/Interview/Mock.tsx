@@ -1,7 +1,7 @@
 /**
- * 模拟面试页面
+ * 题库刷题页面
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Input,
@@ -22,24 +22,23 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   TrophyOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import apiClient from '../../services/api';
+import axios from 'axios';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
 
-// 预设问题
-const PRESET_QUESTIONS = [
-  '请做一个简单的自我介绍',
-  '为什么选择我们公司？',
-  '你的职业规划是什么？',
-  '请介绍一下你最近的项目经验',
-  '描述一次你解决技术难题的经历',
-  '你如何处理团队合作中的冲突？',
-  '你的优势和劣势是什么？',
-  '你期望的薪资是多少？为什么？',
-];
+interface Question {
+  id: number;
+  category: string;
+  difficulty: string;
+  question?: string;
+  question_text?: string;
+  answer_points?: string;
+}
 
 interface Feedback {
   score: number;
@@ -52,12 +51,67 @@ interface Feedback {
 
 const MockInterview: React.FC = () => {
   const [question, setQuestion] = useState('');
+  const [customQuestion, setCustomQuestion] = useState('');
   const [answer, setAnswer] = useState('');
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [loadingQuestions, setLoadingQuestions] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [showQuestionList, setShowQuestionList] = useState(true); // 控制是否显示题库列表
 
-  const handleSelectQuestion = (q: string) => {
-    setQuestion(q);
+  // 加载题库
+  useEffect(() => {
+    loadQuestions();
+  }, []);
+
+  const loadQuestions = async () => {
+    setLoadingQuestions(true);
+    try {
+      const response = await axios.get('/api/v1/interview-exam/questions', {
+        params: { count: 100 },
+      });
+      const rawData = response.data?.data || [];
+
+      // 映射字段名，与 Exam.tsx 保持一致
+      const mappedData = rawData.map((q: any) => ({
+        id: q.id,
+        category: q.category,
+        difficulty: q.difficulty,
+        question: q.question_text || q.question || '', // 关键：统一使用 question 字段
+        answer_points: q.answer_points,
+        related_skills: q.related_skills,
+      }));
+
+      setQuestions(mappedData);
+    } catch (error) {
+      message.error('加载题库失败');
+      console.error('加载题库失败:', error);
+    } finally {
+      setLoadingQuestions(false);
+    }
+  };
+
+  // 筛选题目
+  const filteredQuestions = questions.filter((q) => {
+    if (selectedCategory && q.category !== selectedCategory) return false;
+    return true;
+  });
+
+  // 获取所有分类
+  const categories = Array.from(new Set(questions.map((q) => q.category)));
+
+  const handleSelectQuestion = (q: string | undefined) => {
+    if (q) {
+      setQuestion(q);
+      setCustomQuestion(''); // 清空自定义输入
+    }
+  };
+
+  const handleReset = () => {
+    setQuestion('');
+    setCustomQuestion('');
+    setAnswer('');
     setFeedback(null);
   };
 
@@ -81,24 +135,19 @@ const MockInterview: React.FC = () => {
         answer: answer.trim(),
       });
 
-      // API 客户端的响应拦截器已经解包了 {code, data}，直接使用响应数据
-      if (response?.feedback) {
-        setFeedback(response.feedback);
+      // API 客户端的响应拦截器已经解包了 {code, data}，response 直接是 data 部分
+      const data = response as any;
+      if (data?.feedback) {
+        setFeedback(data.feedback);
         message.success('评估完成');
       } else {
         message.error('评估失败，请重试');
       }
     } catch (error: any) {
-      message.error(error?.message || '评估失败');
+      message.error(error?.message || error || '评估失败');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleReset = () => {
-    setQuestion('');
-    setAnswer('');
-    setFeedback(null);
   };
 
   const getScoreColor = (score: number) => {
@@ -116,60 +165,160 @@ const MockInterview: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '24px' }}>
-      <Card>
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          <div>
-            <Title level={2}>模拟面试</Title>
-            <Paragraph type="secondary">
-              选择或输入面试问题，输入你的答案，AI将为你提供详细的反馈和改进建议。
-            </Paragraph>
-          </div>
+    <div>
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <div>
+          <Title level={2}>题库刷题</Title>
+          <Paragraph type="secondary">
+            从题库中选择面试问题进行练习，AI将为你提供详细的反馈和改进建议。
+          </Paragraph>
+        </div>
 
-          <Alert
-            message="使用提示"
-            description={
-              <ul style={{ margin: 0, paddingLeft: 20 }}>
-                <li>选择预设问题或输入自定义问题</li>
-                <li>认真输入你的答案，尽量详细和完整</li>
-                <li>AI会从完整性、逻辑性、专业性等维度评估你的答案</li>
-                <li>根据反馈建议改进后，可以重复练习</li>
-              </ul>
-            }
-            type="info"
-            showIcon
-          />
+        <Alert
+          message="使用提示"
+          description={
+            <ul style={{ margin: 0, paddingLeft: 20 }}>
+              <li>从题库中选择问题或输入自定义问题</li>
+              <li>可以按分类和难度筛选题目</li>
+              <li>认真输入你的答案，尽量详细和完整</li>
+              <li>AI会从完整性、逻辑性、专业性等维度评估你的答案</li>
+              <li>根据反馈建议改进后，可以重复练习</li>
+            </ul>
+          }
+          type="info"
+          showIcon
+        />
 
-          {/* 问题选择 */}
-          <Card title="1. 选择或输入面试问题" size="small" style={{ backgroundColor: '#fafafa' }}>
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-              <div>
-                <Text strong>预设问题：</Text>
-                <div style={{ marginTop: 8 }}>
+        {/* 问题选择 */}
+        <Card title="1. 选择或输入面试问题" size="small" style={{ backgroundColor: '#fafafa' }}>
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            {showQuestionList ? (
+              <>
+                {/* 筛选器 */}
+                <Space wrap>
+                  <Text strong>筛选条件：</Text>
                   <Select
-                    placeholder="选择一个预设问题"
-                    style={{ width: '100%' }}
-                    onChange={handleSelectQuestion}
-                    value={question || undefined}
+                    placeholder="选择分类"
+                    allowClear
+                    style={{ width: 150 }}
+                    value={selectedCategory || undefined}
+                    onChange={setSelectedCategory}
+                    loading={loadingQuestions}
                   >
-                    {PRESET_QUESTIONS.map((q, idx) => (
-                      <Option key={idx} value={q}>
-                        {q}
+                    {categories.map((cat) => (
+                      <Option key={cat} value={cat}>
+                        {cat}
                       </Option>
                     ))}
                   </Select>
-                </div>
-              </div>
+                  <Button icon={<ReloadOutlined />} onClick={loadQuestions} loading={loadingQuestions}>
+                    刷新题库
+                  </Button>
+                  <Text type="secondary">
+                    共 {filteredQuestions.length} 道题目
+                  </Text>
+                </Space>
 
-              <div>
-                <Text strong>或输入自定义问题：</Text>
-                <Input
-                  placeholder="例如：请介绍一下你在Python方面的项目经验"
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  style={{ marginTop: 8 }}
-                />
-              </div>
+                <div>
+                  <Text strong>从题库选择：</Text>
+                  <div style={{ marginTop: 8, maxHeight: '400px', overflowY: 'auto' }}>
+                    {loadingQuestions ? (
+                      <Spin />
+                    ) : filteredQuestions.length === 0 ? (
+                      <Text type="secondary">暂无题目</Text>
+                    ) : (
+                      filteredQuestions.map((q) => (
+                        <div
+                          key={q.id}
+                          onClick={() => {
+                            if (q.question) {
+                              setQuestion(q.question);
+                              setCustomQuestion('');
+                              setShowQuestionList(false); // 隐藏题库列表
+                            }
+                          }}
+                          style={{
+                            padding: '12px 16px',
+                            marginBottom: 8,
+                            border: '1px solid #d9d9d9',
+                            borderRadius: 4,
+                            cursor: 'pointer',
+                            backgroundColor: '#fff',
+                            transition: 'background-color 0.2s',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#f5f5f5';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = '#fff';
+                          }}
+                        >
+                          <div style={{ marginBottom: 8 }}>
+                            <Tag color="blue">{q.category}</Tag>
+                            <Tag
+                              color={
+                                q.difficulty === 'easy' ? 'green' : q.difficulty === 'medium' ? 'orange' : 'red'
+                              }
+                            >
+                              {q.difficulty === 'easy' ? '简单' : q.difficulty === 'medium' ? '中等' : '困难'}
+                            </Tag>
+                          </div>
+                          <div style={{ color: '#262626', fontSize: 14, lineHeight: '1.6' }}>
+                            {q.question}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <Divider style={{ margin: '8px 0' }}>或</Divider>
+
+                <div>
+                  <Text strong>或输入自定义问题：</Text>
+                  <Input
+                    placeholder="例如：请介绍一下你最近的项目经验"
+                    value={customQuestion}
+                    onChange={(e) => {
+                      setCustomQuestion(e.target.value);
+                      setQuestion(e.target.value);
+                      if (e.target.value) {
+                        setShowQuestionList(false);
+                      }
+                    }}
+                    onPressEnter={() => {
+                      if (customQuestion) {
+                        setShowQuestionList(false);
+                      }
+                    }}
+                    style={{ marginTop: 8 }}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                {/* 显示选中的题目 */}
+                <div>
+                  <Text strong>当前题目：</Text>
+                  <Card size="small" style={{ marginTop: 8, backgroundColor: '#f0f5ff', border: '1px solid #1890ff' }}>
+                    <Paragraph style={{ fontSize: 16, marginBottom: 0 }}>
+                      {question}
+                    </Paragraph>
+                  </Card>
+                </div>
+                <Button
+                  onClick={() => {
+                    setShowQuestionList(true);
+                    setQuestion('');
+                    setCustomQuestion('');
+                    setAnswer('');
+                    setFeedback(null);
+                  }}
+                >
+                  重新选择题目
+                </Button>
+              </>
+            )}
             </Space>
           </Card>
 
@@ -300,9 +449,8 @@ const MockInterview: React.FC = () => {
             </Card>
           )}
         </Space>
-      </Card>
-    </div>
-  );
+      </div>
+    );
 };
 
 export default MockInterview;

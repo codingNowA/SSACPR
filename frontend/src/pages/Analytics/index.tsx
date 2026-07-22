@@ -232,9 +232,6 @@ const Analytics: React.FC = () => {
                     <Option value="count">岗位数量</Option>
                     <Option value="avg_salary">平均薪资</Option>
                   </Select>
-                  <Button type="primary" onClick={handleComparisonChange}>
-                    应用
-                  </Button>
                 </Space>
               }
             >

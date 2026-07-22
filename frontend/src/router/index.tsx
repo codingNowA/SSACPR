@@ -15,8 +15,7 @@ import JobList from '../pages/Job/List';
 import JobInterpret from '../pages/Job/Interpret';
 import JobCenter from '../pages/Job/Center';
 import InterviewPrep from '../pages/Interview/Prep';
-import MockInterview from '../pages/Interview/Mock';
-import InterviewExam from '../pages/Interview/Exam';
+import InterviewIndex from '../pages/Interview/Index';
 import QuestionBank from '../pages/Interview/QuestionBank';
 import UserProfile from '../pages/User/Profile';
 import Analytics from '../pages/Analytics';
@@ -118,16 +117,12 @@ export const router = createBrowserRouter([
         path: 'interview',
         children: [
           {
+            index: true,
+            element: <InterviewIndex />,
+          },
+          {
             path: 'prep',
             element: <InterviewPrep />,
-          },
-          {
-            path: 'mock',
-            element: <MockInterview />,
-          },
-          {
-            path: 'exam',
-            element: <InterviewExam />,
           },
           {
             path: 'questions',

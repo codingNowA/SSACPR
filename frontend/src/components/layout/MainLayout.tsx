@@ -65,21 +65,9 @@ const MainLayout: React.FC = () => {
       label: '岗位中心',
     },
     {
-      key: 'interview',
+      key: '/interview',
       icon: <TrophyOutlined />,
       label: '面试',
-      children: [
-        {
-          key: '/interview/exam',
-          icon: <TrophyOutlined />,
-          label: '模拟面试',
-        },
-        {
-          key: '/interview/questions',
-          icon: <BookOutlined />,
-          label: '面试题库',
-        },
-      ],
     },
     {
       key: '/analytics',
