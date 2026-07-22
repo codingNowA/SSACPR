@@ -228,10 +228,14 @@ const InterviewExam: React.FC = () => {
 
       for (const ans of finalAnswers) {
         try {
+          const token = localStorage.getItem('token');
+          const headers: any = {};
+          if (token) headers.Authorization = `Bearer ${token}`;
+
           const evalRes = await axios.post('/api/v1/interview-mock/evaluate', {
             question: ans.question,
             answer: ans.answer,
-          });
+          }, { headers });
           const evalData = evalRes.data?.data || evalRes.data;
           const feedback = evalData?.feedback || {};
 
