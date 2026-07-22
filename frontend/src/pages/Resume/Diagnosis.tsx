@@ -586,13 +586,6 @@ const ResumeDiagnosis: React.FC = () => {
                     strokeColor={getScoreColor(scores.project_depth?.total_score || 0)}
                   />
                 </div>
-                <div>
-                  <Text>岗位匹配</Text>
-                  <Progress
-                    percent={scores.job_match || 0}
-                    strokeColor={getScoreColor(scores.job_match || 0)}
-                  />
-                </div>
               </Space>
             </Col>
           </Row>
