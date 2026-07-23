@@ -213,9 +213,14 @@ DROP TRIGGER IF EXISTS update_applications_updated_at ON applications;
 CREATE TRIGGER update_applications_updated_at BEFORE UPDATE ON applications
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- 默认管理员（密码: admin123，需要应用中哈希处理后替换 placeholder）
+-- 默认管理员（密码: admin123）
 INSERT INTO users (username, password_hash, email, role, real_name)
-VALUES ('admin', '$2b$12$placeholder_hash', 'admin@example.com', 'admin', '系统管理员')
+VALUES ('admin', '$2b$12$OVvtXqjuGv5iuvYEQrkekOHvEdGsdlS00dLFgpa.im/tRASHANVq2', 'admin@example.com', 'admin', '系统管理员')
+ON CONFLICT (username) DO NOTHING;
+
+-- 测试用户（密码: user123）
+INSERT INTO users (username, password_hash, email, role, real_name)
+VALUES ('testuser', '$2b$12$iozgovWmsUYB6S9L.ccDGeRkOXc7wGNIzDT7P1QjE/C84PMy59m6W', 'user@example.com', 'student', '测试用户')
 ON CONFLICT (username) DO NOTHING;
 """
 
@@ -354,8 +359,10 @@ async def main() -> None:
 
     print("=" * 60)
     print("  初始化完成！")
-    print("  默认管理员: username=admin, password=admin123")
-    print("  请在首次登录后修改密码")
+    print("  测试账号:")
+    print("    管理员: username=admin, password=admin123")
+    print("    学生: username=testuser, password=user123")
+    print("  请在生产环境中修改默认密码")
     print("=" * 60)
 
 
