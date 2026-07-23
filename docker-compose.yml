@@ -122,23 +122,22 @@ services:
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
 
-  # React 前端服务（开发模式）
+  # React 前端服务（生产模式）
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     container_name: career-frontend
+<<<<<<< Updated upstream
     environment:
       - VITE_PROXY_TARGET=http://career-backend:8000
       - VITE_APP_ENV=development
+=======
+>>>>>>> Stashed changes
     ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - "3000:80"
     networks:
       - career-network
-    command: npm run dev -- --host 0.0.0.0
     restart: unless-stopped
 
   # Nginx 反向代理
