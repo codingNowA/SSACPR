@@ -118,7 +118,6 @@ class JobCreate(BaseModel):
         default=None, description="公司性质，如 '国企', '外企', '民营'"
     )
     source: Optional[str] = None
-    job_profile: Optional[Dict[str, Any]] = Field(default=None, description='岗位画像 JSON')
 
 
 class JobResponse(BaseModel):
@@ -138,35 +137,13 @@ class JobResponse(BaseModel):
     status: str = "active"
     source: Optional[str] = None
     created_at: Optional[datetime] = None
-    job_profile: Optional[Dict[str, Any]] = None
-    updated_at: Optional[datetime] = None
 
 
 class JobListResponse(BaseModel):
-    '''岗位列表响应'''
+    """岗位列表响应"""
     total: int
     items: List[JobResponse]
-    page: int = 1
-    page_size: int = 20
-    total_pages: int = 0
 
-
-class JobUpdate(BaseModel):
-    '''更新岗位（所有字段可选）'''
-    title: Optional[str] = None
-    company: Optional[str] = None
-    industry: Optional[str] = None
-    location: Optional[str] = None
-    salary_range: Optional[str] = None
-    experience_required: Optional[str] = None
-    education_required: Optional[str] = None
-    description: Optional[str] = None
-    requirements: Optional[str] = None
-    skills: Optional[List[str]] = None
-    company_type: Optional[str] = None
-    job_profile: Optional[Dict[str, Any]] = None
-    status: Optional[str] = None
-    source: Optional[str] = None
 
 # ============================================================
 # 匹配相关

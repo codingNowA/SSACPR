@@ -4,7 +4,7 @@
 """
 import re
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Dict, Optional
 
 import docx
 from PyPDF2 import PdfReader
@@ -24,7 +24,7 @@ class ResumeParser:
     def __init__(self):
         self.supported_formats = ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg']
 
-    def parse(self, file_path: str, file_type: Optional[str] = None) -> Dict[str, Any]:
+    def parse(self, file_path: str, file_type: Optional[str] = None) -> Dict[str, any]:
         """
         解析简历文件
 
@@ -57,7 +57,8 @@ class ResumeParser:
         # 根据文件类型选择解析方法
         try:
             if file_type == 'pdf':
-                text, page_count = self._parse_pdf(file_path)
+                text = self._parse_pdf(file_path)
+                page_count = self._get_pdf_page_count(file_path)
             elif file_type in ['doc', 'docx']:
                 text = self._parse_word(file_path)
                 page_count = None
@@ -87,7 +88,7 @@ class ResumeParser:
                 raise
             raise ResumeParserError(f"解析失败: {str(e)}")
 
-    def _parse_pdf(self, file_path: str) -> Tuple[str, int]:
+    def _parse_pdf(self, file_path: str) -> str:
         """
         解析 PDF 文件
 
@@ -95,11 +96,10 @@ class ResumeParser:
             file_path: PDF 文件路径
 
         Returns:
-            (提取的文本内容, 页数) —— 只打开并解析一次 PDF
+            提取的文本内容
         """
         try:
             reader = PdfReader(file_path)
-            page_count = len(reader.pages)
             text_parts = []
 
             for page in reader.pages:
@@ -119,7 +119,7 @@ class ResumeParser:
                     except OCRError:
                         pass
 
-            return text, page_count
+            return text
 
         except Exception as e:
             raise ResumeParserError(f"PDF 解析失败: {str(e)}")
@@ -190,7 +190,7 @@ class ResumeParser:
 
     def _clean_text(self, text: str) -> str:
         """
-        清理提取的文本，包括修复常见的 OCR 识别错误
+        清理提取的文本
 
         Args:
             text: 原始文本
@@ -200,38 +200,6 @@ class ResumeParser:
         """
         if not text:
             return ""
-
-        # 修复常见的 OCR 识别错误（在任何处理之前先修复）
-        # 修复 "基于" 的常见错误识别（使用多种匹配模式确保覆盖）
-        # 1. 后面跟空格
-        text = re.sub(r'JEF\s+', '基于 ', text)
-        text = re.sub(r'J£F\s+', '基于 ', text)  # £ 英镑符号
-        text = re.sub(r'J\$F\s+', '基于 ', text)
-        text = re.sub(r'JtF\s+', '基于 ', text)
-        text = re.sub(r'J&F\s+', '基于 ', text)
-        text = re.sub(r'J@F\s+', '基于 ', text)
-
-        # 2. 后面跟大写字母
-        text = re.sub(r'JEF(?=[A-Z])', '基于', text)
-        text = re.sub(r'J£F(?=[A-Z])', '基于', text)
-
-        # 3. 不区分大小写的通用匹配
-        text = re.sub(r'jef\s+', '基于 ', text, flags=re.IGNORECASE)
-        text = re.sub(r'j£f\s+', '基于 ', text, flags=re.IGNORECASE)
-
-        # 修复常见技术名称的 OCR 错误
-        text = re.sub(r'\bSping\b', 'Spring', text)  # Sping → Spring
-        text = re.sub(r'\bSpirng\b', 'Spring', text)  # Spirng → Spring
-        text = re.sub(r'\bMybatis\b', 'MyBatis', text)  # 统一大小写
-
-        # 修复邮箱常见错误（@ 后缺少点号）
-        # 例如：lichen@emailcom → lichen@email.com
-        text = re.sub(r'@gmailcom\b', '@gmail.com', text)
-        text = re.sub(r'@emailcom\b', '@email.com', text)
-        text = re.sub(r'@qqcom\b', '@qq.com', text)
-        text = re.sub(r'@163com\b', '@163.com', text)
-        text = re.sub(r'@126com\b', '@126.com', text)
-        text = re.sub(r'@outlookcom\b', '@outlook.com', text)
 
         # 移除多余的空白字符
         text = re.sub(r'\s+', ' ', text)
@@ -243,6 +211,15 @@ class ResumeParser:
         text = text.strip()
 
         return text
+
+    def _get_pdf_page_count(self, file_path: str) -> int:
+        """获取 PDF 页数"""
+        try:
+            reader = PdfReader(file_path)
+            return len(reader.pages)
+        except Exception:
+            return 0
+
 
 # 全局简历解析器实例
 resume_parser = ResumeParser()

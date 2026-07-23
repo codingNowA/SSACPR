@@ -6,11 +6,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import analytics
-from app.api import questions
-from app.api import jobs
-from app.api import logs
-from app.api import dictionary
 
 from app.api.v1 import api_v1_router
 from app.services.job_service import get_db_pool, close_db_pool
@@ -65,14 +60,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ========== 注册路由 ==========
-app.include_router(analytics.router)  # ← 这一行是新加的
-app.include_router(questions.router)
-app.include_router(jobs.router)
-app.include_router(logs.router)
-app.include_router(dictionary.router)
+# 注册路由
 app.include_router(api_v1_router)
-
 
 
 @app.get("/")

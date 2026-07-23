@@ -45,10 +45,8 @@ class OCRReader:
             OCRError: OCR 识别失败
         """
         try:
-            with Image.open(image_path) as image:
-                return self._extract_text(image)
-        except OCRError:
-            raise
+            image = Image.open(image_path)
+            return self._extract_text(image)
         except Exception as e:
             raise OCRError(f"图片读取失败: {str(e)}")
 
@@ -63,10 +61,8 @@ class OCRReader:
             提取的文本内容
         """
         try:
-            with Image.open(io.BytesIO(image_bytes)) as image:
-                return self._extract_text(image)
-        except OCRError:
-            raise
+            image = Image.open(io.BytesIO(image_bytes))
+            return self._extract_text(image)
         except Exception as e:
             raise OCRError(f"图片字节流读取失败: {str(e)}")
 

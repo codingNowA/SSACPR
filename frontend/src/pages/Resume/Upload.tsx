@@ -24,8 +24,7 @@ const { Dragger } = Upload;
 
 const ResumeUpload: React.FC = () => {
   const navigate = useNavigate();
-  const { user, setCurrentResumeId, setResumeData, setDiagnosisResult } = useAppStore();
-  const userId = user?.userId;
+  const { userId, setCurrentResumeId, setResumeData, setDiagnosisResult } = useAppStore();
 
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -105,7 +104,7 @@ const ResumeUpload: React.FC = () => {
 
       // 跳转到诊断结果页面
       setTimeout(() => {
-        navigate(`/resume/diagnosis/${resumeId}`);
+        navigate(`/resume/${resumeId}/diagnosis`);
       }, 1000);
 
     } catch (error: any) {

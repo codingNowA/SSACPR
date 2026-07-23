@@ -1,18 +1,11 @@
 """
 岗位服务 - 岗位 CRUD、OpenSearch 索引管理与检索
 
-合并自:
-  - feature/data-analysis: update_job、增强列表筛选、job_profile 字段
-  - test/merge_2-3: asyncpg 异步、OpenSearch 集成、recall_jobs、薪资解析
-
 修复：
-  - DB 连接池参数统一从 config/settings 读取
-  - 新增 company_type 字段支持
-  - recall_jobs 修复 filter 构建逻辑 + 薪资范围过滤
-  - PG 降级查询也带偏好过滤
-  - update_job 基于 asyncpg 重写
-  - list_jobs 增加 title/company/keyword 筛选
-  - job_profile JSONB 字段支持
+- DB 连接池参数统一从 config/settings 读取
+- 新增 company_type 字段支持
+- recall_jobs 修复 filter 构建逻辑 + 薪资范围过滤
+- PG 降级查询也带偏好过滤
 """
 from __future__ import annotations
 
@@ -22,11 +15,9 @@ import re
 from typing import Any, Dict, List, Optional
 
 import asyncpg
-import json
 
 from app.schemas.job import (
     JobCreate,
-    JobUpdate,
     JobListResponse,
     JobResponse,
     MatchPreferences,
@@ -42,6 +33,7 @@ logger = logging.getLogger(__name__)
 # ============================================================
 # 数据库连接池
 # ============================================================
+
 _pool: Optional[asyncpg.Pool] = None
 
 
@@ -72,18 +64,20 @@ async def close_db_pool() -> None:
 # ============================================================
 # 薪资解析工具
 # ============================================================
+
 def parse_salary_range(salary_range: Optional[str]) -> Optional[tuple]:
     """
     解析薪资范围字符串为 (min_k, max_k) 元组。
 
     支持格式：
-      - "15K-25K", "15k-25k", "15-25K"
-      - "8K-12K"
-      - "面议" → None
+    - "15K-25K", "15k-25k", "15-25K"
+    - "8K-12K"
+    - "面议" → None
     """
     if not salary_range:
         return None
 
+    # 统一转大写，去掉空格
     text = salary_range.upper().replace(" ", "")
 
     if "面议" in salary_range or "薪资" in salary_range:
@@ -95,6 +89,7 @@ def parse_salary_range(salary_range: Optional[str]) -> Optional[tuple]:
     if match:
         low = int(match.group(1))
         high = int(match.group(2))
+        # 如果原始没有 K，且数字很小，假设单位是 K
         if low < 100 and high < 100:
             return (low, high)
         return (low, high)
@@ -124,33 +119,31 @@ class JobService:
     # ----------------------------------------------------------
     # 岗位 CRUD
     # ----------------------------------------------------------
+
     async def create_job(self, data: JobCreate) -> JobResponse:
         """创建岗位（写入 PostgreSQL + OpenSearch）"""
         pool = await get_db_pool()
-        job_profile_json = json.dumps(data.job_profile) if hasattr(data, 'job_profile') and data.job_profile else None
-
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
                 INSERT INTO jobs (title, company, industry, location, salary_range,
-                    experience_required, education_required, description, requirements,
-                    source, job_profile)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                    CAST($11 AS jsonb))
+                                  experience_required, education_required,
+                                  description, requirements, source)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                 RETURNING id, title, company, industry, location, salary_range,
-                    experience_required, education_required, description, requirements,
-                    job_profile, status, source, created_at, updated_at
+                          experience_required, education_required,
+                          description, requirements, status, source, created_at
                 """,
                 data.title, data.company, data.industry, data.location,
                 data.salary_range, data.experience_required, data.education_required,
                 data.description, data.requirements, data.source,
-                job_profile_json,
             )
 
         result = JobResponse(**dict(row), skills=data.skills, company_type=data.company_type)
 
         # 同步到 OpenSearch
         self._index_job_to_opensearch(result, data.skills)
+
         return result
 
     async def get_job(self, job_id: int) -> Optional[JobResponse]:
@@ -160,24 +153,14 @@ class JobService:
             row = await conn.fetchrow(
                 "SELECT id, title, company, industry, location, salary_range, "
                 "experience_required, education_required, description, requirements, "
-                "job_profile, status, source, created_at FROM jobs WHERE id = $1",
+                "status, source, created_at FROM jobs WHERE id = $1",
                 job_id,
             )
         if row is None:
             return None
-
-        # 转换为字典并解析 job_profile
-        job_dict = dict(row)
-        if job_dict.get('job_profile') and isinstance(job_dict['job_profile'], str):
-            try:
-                job_dict['job_profile'] = json.loads(job_dict['job_profile'])
-            except json.JSONDecodeError:
-                logger.warning(f"Failed to parse job_profile for job {job_id}")
-                job_dict['job_profile'] = {}
-
         # 从 OpenSearch 获取 skills 和 company_type
         extra = await self._get_job_os_fields(job_id)
-        return JobResponse(**job_dict, **extra)
+        return JobResponse(**dict(row), **extra)
 
     async def list_jobs(
         self,
@@ -186,11 +169,8 @@ class JobService:
         status: Optional[str] = None,
         industry: Optional[str] = None,
         location: Optional[str] = None,
-        title: Optional[str] = None,
-        company: Optional[str] = None,
-        keyword: Optional[str] = None,
     ) -> JobListResponse:
-        """获取岗位列表（支持分页和多维筛选）"""
+        """获取岗位列表"""
         pool = await get_db_pool()
         conditions = []
         params = []
@@ -208,18 +188,6 @@ class JobService:
             conditions.append(f"location = ${idx}")
             params.append(location)
             idx += 1
-        if title:
-            conditions.append(f"title ILIKE ${idx}")
-            params.append(f"%{title}%")
-            idx += 1
-        if company:
-            conditions.append(f"company ILIKE ${idx}")
-            params.append(f"%{company}%")
-            idx += 1
-        if keyword:
-            conditions.append(f"(title ILIKE ${idx} OR company ILIKE ${idx} OR description ILIKE ${idx})")
-            params.append(f"%{keyword}%")
-            idx += 1
 
         where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
@@ -232,110 +200,29 @@ class JobService:
         rows = await pool.fetch(
             f"SELECT id, title, company, industry, location, salary_range, "
             f"experience_required, education_required, description, requirements, "
-            f"job_profile, status, source, created_at FROM jobs {where_clause} "
+            f"status, source, created_at FROM jobs {where_clause} "
             f"ORDER BY created_at DESC LIMIT {page_size} OFFSET {offset}",
             *params,
         )
 
-        # 解析 job_profile 字段
-        items = []
-        for r in rows:
-            job_dict = dict(r)
-            if job_dict.get('job_profile') and isinstance(job_dict['job_profile'], str):
-                try:
-                    job_dict['job_profile'] = json.loads(job_dict['job_profile'])
-                except json.JSONDecodeError:
-                    logger.warning(f"Failed to parse job_profile for job {job_dict.get('id')}")
-                    job_dict['job_profile'] = {}
-            items.append(JobResponse(**job_dict))
-
-        total_pages = (total + page_size - 1) // page_size if total > 0 else 0
-
-        return JobListResponse(
-            total=total, items=items, page=page,
-            page_size=page_size, total_pages=total_pages,
-        )
-
-    async def update_job(self, job_id: int, data: JobUpdate) -> Optional[JobResponse]:
-        """更新岗位"""
-        pool = await get_db_pool()
-
-        # 先检查是否存在
-        existing = await self.get_job(job_id)
-        if not existing:
-            return None
-
-        update_fields = []
-        params = []
-        idx = 1
-
-        field_map = {
-            "title": data.title,
-            "company": data.company,
-            "industry": data.industry,
-            "location": data.location,
-            "salary_range": data.salary_range,
-            "experience_required": data.experience_required,
-            "education_required": data.education_required,
-            "description": data.description,
-            "requirements": data.requirements,
-            "status": data.status,
-            "source": data.source,
-        }
-
-        for field, value in field_map.items():
-            if value is not None:
-                update_fields.append(f"{field} = ${idx}")
-                params.append(value)
-                idx += 1
-
-        # job_profile 单独处理（JSONB）
-        if hasattr(data, 'job_profile') and data.job_profile is not None:
-            update_fields.append(f"job_profile = CAST(${idx} AS jsonb)")
-            params.append(json.dumps(data.job_profile))
-            idx += 1
-
-        if not update_fields:
-            return existing
-
-        params.append(job_id)  # WHERE id = $N
-        where_idx = idx
-
-        set_sql = ", ".join(update_fields)
-        async with pool.acquire() as conn:
-            row = await conn.fetchrow(
-                f"UPDATE jobs SET {set_sql}, updated_at = NOW() "
-                f"WHERE id = ${where_idx} "
-                f"RETURNING id, title, company, industry, location, salary_range, "
-                f"experience_required, education_required, description, requirements, "
-                f"job_profile, status, source, created_at, updated_at",
-                *params,
-            )
-
-        if row is None:
-            return None
-
-        # 同步更新 OpenSearch
-        result = JobResponse(**dict(row))
-        self._index_job_to_opensearch(result, data.skills if hasattr(data, 'skills') else None)
-        return result
+        items = [JobResponse(**dict(r)) for r in rows]
+        return JobListResponse(total=total, items=items)
 
     async def delete_job(self, job_id: int) -> bool:
         """删除岗位"""
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             result = await conn.execute("DELETE FROM jobs WHERE id = $1", job_id)
-
         try:
             self.os_client.client.delete(index="jobs", id=str(job_id))
         except Exception as e:
             logger.warning(f"从 OpenSearch 删除岗位 {job_id} 失败: {e}")
-
         return result == "DELETE 1"
 
     # ----------------------------------------------------------
     # OpenSearch 索引操作
     # ----------------------------------------------------------
+
     def init_job_index(self) -> bool:
         """初始化岗位索引"""
         return self.os_client.create_index("jobs", JOB_INDEX_MAPPINGS)
@@ -373,6 +260,7 @@ class JobService:
     # ----------------------------------------------------------
     # 岗位检索（召回阶段）
     # ----------------------------------------------------------
+
     async def recall_jobs(
         self,
         keywords: Optional[List[str]] = None,
@@ -383,9 +271,9 @@ class JobService:
         岗位召回：基于关键词 + 用户偏好从 OpenSearch 检索候选岗位
 
         策略：
-          1. 关键词 multi_match 搜索
-          2. 偏好过滤（industry, location, salary, education, company_type）
-          3. 只查活跃岗位
+        1. 关键词 multi_match 搜索
+        2. 偏好过滤（industry, location, salary, education, company_type）
+        3. 只查活跃岗位
         """
         if not self.os_client.is_initialized:
             # OpenSearch 未初始化，走 PG 降级
@@ -420,8 +308,12 @@ class JobService:
                 filters.append({"term": {"experience_required": preferences.experience}})
             if preferences.company_types:
                 filters.append({"terms": {"company_type": preferences.company_types}})
+            # 薪资范围：通过 post_filter 或在打分阶段过滤
+            # OpenSearch salary_range 是 keyword，无法直接做范围查询
+            # 薪资过滤放在匹配算法的偏好打分阶段
 
         query = {"bool": {"must": must, "filter": filters}}
+
         result = self.os_client.search("jobs", query, size=size)
         candidates = self.os_client.parse_search_results(result)
 
@@ -484,7 +376,6 @@ class JobService:
                 continue
 
             job_min, job_max = salary
-
             # 岗位薪资范围与用户期望有交集即可
             if preferences.salary_min is not None and job_max < preferences.salary_min:
                 continue
@@ -492,7 +383,6 @@ class JobService:
                 continue
 
             filtered.append(c)
-
         return filtered
 
     async def get_jobs_by_ids(self, job_ids: List[int]) -> List[JobResponse]:
@@ -504,23 +394,10 @@ class JobService:
             rows = await conn.fetch(
                 "SELECT id, title, company, industry, location, salary_range, "
                 "experience_required, education_required, description, requirements, "
-                "job_profile, status, source, created_at FROM jobs WHERE id = ANY($1)",
+                "status, source, created_at FROM jobs WHERE id = ANY($1)",
                 job_ids,
             )
-
-        # 解析 job_profile 字段
-        jobs = []
-        for r in rows:
-            job_dict = dict(r)
-            if job_dict.get('job_profile') and isinstance(job_dict['job_profile'], str):
-                try:
-                    job_dict['job_profile'] = json.loads(job_dict['job_profile'])
-                except json.JSONDecodeError:
-                    logger.warning(f"Failed to parse job_profile for job {job_dict.get('id')}")
-                    job_dict['job_profile'] = {}
-            jobs.append(JobResponse(**job_dict))
-
-        return jobs
+        return [JobResponse(**dict(r)) for r in rows]
 
 
 # 单例
