@@ -1,5 +1,15 @@
 """
-简历 CRUD 和诊断相关 API（缺失的路由）
+简历 CRUD 和诊断相关 API
+
+职责说明：
+- 简历基本信息的增删改查
+- 简历解析和诊断触发
+- 简历评分查询
+- 简历优化操作
+
+注意：
+- resume.py: 处理简历上传、解析、版本管理等核心功能
+- versions.py: 处理简历版本快照的专门操作
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.auth import get_current_user

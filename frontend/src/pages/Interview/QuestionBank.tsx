@@ -4,18 +4,9 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Input, Select, Tag, Card, Space, Typography, message, Button } from 'antd';
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons';
-import axios from 'axios';
+import { listQuestions, Question } from '../../services/interview';
 
 const { Title } = Typography;
-
-interface Question {
-  id: number;
-  question_text: string;
-  category: string;
-  difficulty: string;
-  answer_points?: string;
-  created_at: string;
-}
 
 const difficultyMap: Record<string, { label: string; color: string }> = {
   easy: { label: '简单', color: 'green' },
@@ -50,12 +41,12 @@ const QuestionBank: React.FC = () => {
       if (difficulty) params.difficulty = difficulty;
       if (keyword) params.keyword = keyword;
 
-      const response = await axios.get('/api/v1/interview-exam/questions/list', { params });
-      const data = response.data;
-      setQuestions(data?.data || []);
+      const response = await listQuestions(params);
+      const data = response.data || [];
+      setQuestions(data);
       setPagination(prev => ({
         ...prev,
-        total: data?.total || 0,
+        total: response.total || 0,
       }));
     } catch (error: any) {
       console.error('加载题目失败:', error);

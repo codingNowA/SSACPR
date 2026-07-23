@@ -11,7 +11,6 @@ from app.api import questions
 from app.api import jobs
 from app.api import logs
 from app.api import dictionary
-
 from app.api.v1 import api_v1_router
 from app.services.job_service import get_db_pool, close_db_pool
 from app.utils.opensearch import get_opensearch_client
@@ -66,11 +65,14 @@ app.add_middleware(
 )
 
 # ========== 注册路由 ==========
-app.include_router(analytics.router)  # ← 这一行是新加的
-app.include_router(questions.router)
-app.include_router(jobs.router)
-app.include_router(logs.router)
-app.include_router(dictionary.router)
+# 管理员功能路由（独立注册，带 /api/v1/admin 前缀）
+app.include_router(analytics.router)      # /api/v1/analytics - 数据分析
+app.include_router(questions.router)      # /api/v1/admin/questions - 题库管理
+app.include_router(jobs.router)           # /api/v1/admin/jobs - 岗位管理
+app.include_router(logs.router)           # /api/v1/admin/logs - 日志查询
+app.include_router(dictionary.router)     # /api/v1/admin/dictionary - 词库配置
+
+# V1 版本路由（包含：认证、简历、岗位、匹配、面试等核心功能）
 app.include_router(api_v1_router)
 
 
