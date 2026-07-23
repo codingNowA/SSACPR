@@ -128,12 +128,6 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: career-frontend
-<<<<<<< Updated upstream
-    environment:
-      - VITE_PROXY_TARGET=http://career-backend:8000
-      - VITE_APP_ENV=development
-=======
->>>>>>> Stashed changes
     ports:
       - "3000:80"
     networks:
