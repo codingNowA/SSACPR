@@ -99,7 +99,7 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
         username=request.username,
         password=request.password,
         email=request.email,
-        role="user",  # 新注册用户默认为普通用户
+        role="student",  # 新注册用户默认为学生
         real_name=request.real_name
     )
 
