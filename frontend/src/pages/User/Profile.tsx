@@ -70,7 +70,8 @@ const UserProfile: React.FC = () => {
   };
 
   const roleMap: Record<string, { label: string; color: string }> = {
-    user: { label: '普通用户', color: 'blue' },
+    student: { label: '学生', color: 'blue' },
+    teacher: { label: '教师', color: 'green' },
     admin: { label: '管理员', color: 'red' },
   };
 
@@ -82,12 +83,12 @@ const UserProfile: React.FC = () => {
             <Avatar size={80} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
             <div>
               <Title level={2} style={{ margin: 0 }}>
-                {stats?.username || `普通用户${user?.userId || ''}`}
+                {stats?.username || `用户${user?.userId || ''}`}
               </Title>
               <Space>
                 <Text type="secondary">{stats?.email || '-'}</Text>
-                <Tag color={roleMap[stats?.role || 'user']?.color || 'default'}>
-                  {roleMap[stats?.role || 'user']?.label || stats?.role}
+                <Tag color={roleMap[stats?.role || 'student']?.color || 'default'}>
+                  {roleMap[stats?.role || 'student']?.label || stats?.role}
                 </Tag>
               </Space>
             </div>
@@ -100,8 +101,8 @@ const UserProfile: React.FC = () => {
             <Descriptions.Item label="用户名">{stats?.username || '-'}</Descriptions.Item>
             <Descriptions.Item label="邮箱">{stats?.email || '-'}</Descriptions.Item>
             <Descriptions.Item label="角色">
-              <Tag color={roleMap[stats?.role || 'user']?.color || 'default'}>
-                {roleMap[stats?.role || 'user']?.label || stats?.role}
+              <Tag color={roleMap[stats?.role || 'student']?.color || 'default'}>
+                {roleMap[stats?.role || 'student']?.label || stats?.role}
               </Tag>
             </Descriptions.Item>
             <Descriptions.Item label="账户状态" span={2}>
