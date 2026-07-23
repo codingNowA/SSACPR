@@ -58,10 +58,16 @@ dev: up
 # 启动所有服务（跨平台兼容）
 up:
 	@echo ===== 启动 SSACPR 系统 =====
-	@echo [1/2] 启动 Docker 服务...
-	$(COMPOSE) up -d --build
-	@echo [2/2] 等待服务就绪...
-	@ping 127.0.0.1 -n 16 >nul 2>&1 || sleep 15 2>/dev/null || echo ""
+	@echo [1/3] 启动 Docker 服务...
+	@$(COMPOSE) up -d --build
+	@echo [2/3] 等待服务就绪...
+	@sleep 15 2>nul || timeout /t 15 /nobreak >nul 2>&1 || exit 0
+	@echo [3/3] 运行数据库迁移...
+	@python scripts/migrate.py
+	@bash scripts/load_questions.sh 2>nul || echo 面试题数据检查完成
+	@echo 检查并导入日志测试数据...
+	@docker cp scripts/seed_logs.sql career-postgres:/tmp/seed_logs.sql 2>nul || echo "跳过日志数据复制"
+	@docker exec career-postgres psql -U career_user -d career_planning -f /tmp/seed_logs.sql 2>nul || echo "日志数据已存在"
 	@echo ===== 启动完成 =====
 	@echo
 	@echo 访问地址:
@@ -149,7 +155,20 @@ status:
 
 # 重启服务
 restart:
-	$(COMPOSE) restart
+	@echo "===== 重启 SSACPR 系统 ====="
+	@echo "[1/4] 停止服务..."
+	@$(COMPOSE) down
+	@echo "[2/4] 重新构建并启动..."
+	@$(COMPOSE) up -d --build
+	@echo "[3/4] 等待服务就绪..."
+	@sleep 15 2>nul || timeout /t 15 /nobreak >nul 2>&1 || exit 0
+	@echo "[4/4] 运行数据库迁移..."
+	@python scripts/migrate.py
+	@bash scripts/load_questions.sh 2>nul || echo 面试题数据检查完成
+	@echo 检查并导入日志测试数据...
+	@docker cp scripts/seed_logs.sql career-postgres:/tmp/seed_logs.sql 2>nul || echo "跳过日志数据复制"
+	@docker exec career-postgres psql -U career_user -d career_planning -f /tmp/seed_logs.sql 2>nul || echo "日志数据已存在"
+	@echo "===== 重启完成 ====="
 
 # 查看后端日志
 logs-backend:
