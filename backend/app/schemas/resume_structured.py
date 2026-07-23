@@ -63,6 +63,7 @@ class ResumeStructuredData(BaseModel):
     work_experience: List[WorkExperience] = Field(default_factory=list, description="工作/实习经历")
     project_experience: List[ProjectExperience] = Field(default_factory=list, description="项目经验")
     skills: List[SkillTag] = Field(default_factory=list, description="技能标签")
+    self_evaluation: Optional[str] = Field(None, description="自我评价")
 
 
 class ResumeExtractResponse(BaseModel):

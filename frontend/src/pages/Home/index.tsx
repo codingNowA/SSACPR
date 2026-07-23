@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Row, Col, Button, Typography, Space, Divider } from 'antd';
+import { Card, Row, Col, Button, Typography, Space } from 'antd';
 import {
   FileTextOutlined,
   ThunderboltOutlined,

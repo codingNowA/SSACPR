@@ -94,7 +94,11 @@ class LLMClient:
                     headers=headers,
                 )
                 response.raise_for_status()
-                raw = response.json()
+                try:
+                    raw = response.json()
+                except (json.JSONDecodeError, ValueError) as exc:
+                    logger.error("LLM response is not valid JSON")
+                    raise LLMClientError("LLM 返回内容不是合法的 JSON 响应") from exc
         except httpx.HTTPStatusError as exc:
             # 错误日志不包含 response 完整内容（可能含 API Key 等敏感信息）
             logger.error("LLM call failed: HTTP %s", exc.response.status_code)
@@ -122,10 +126,51 @@ class LLMClient:
         **kwargs: Any,
     ) -> Dict[str, Any]:
         result = await self.chat(user_prompt, system_prompt=system_prompt, **kwargs)
+        return self._parse_json_content(result.content)
+
+    @staticmethod
+    def _parse_json_content(content: str) -> Dict[str, Any]:
+        """从模型输出中稳健地解析 JSON。
+
+        兼容以下常见情况：
+          - 直接是合法 JSON；
+          - 被 ```json ... ``` 或 ``` ... ``` 代码围栏包裹；
+          - JSON 前后夹带说明性文字（提取第一个 {...} 或 [...] 片段）。
+        """
+        text = (content or "").strip()
+
+        # 1. 直接尝试
         try:
-            return json.loads(result.content)
-        except json.JSONDecodeError as exc:
-            raise LLMClientError("LLM 返回内容不是合法 JSON") from exc
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+
+        # 2. 去除 markdown 代码围栏
+        if text.startswith("```"):
+            fenced = text.strip("`")
+            # 去掉可能的语言标注行（如 json）
+            if "\n" in fenced:
+                first_line, rest = fenced.split("\n", 1)
+                if first_line.strip().lower() in ("json", "javascript", ""):
+                    fenced = rest
+            fenced = fenced.strip()
+            try:
+                return json.loads(fenced)
+            except json.JSONDecodeError:
+                text = fenced
+
+        # 3. 提取第一个 JSON 对象/数组片段
+        for opener, closer in (("{", "}"), ("[", "]")):
+            start = text.find(opener)
+            end = text.rfind(closer)
+            if start != -1 and end != -1 and end > start:
+                candidate = text[start:end + 1]
+                try:
+                    return json.loads(candidate)
+                except json.JSONDecodeError:
+                    continue
+
+        raise LLMClientError("LLM 返回内容不是合法 JSON")
 
     def _normalize_url(self, base_url: str) -> str:
         """规范化 LLM API 地址。
@@ -155,13 +200,15 @@ class LLMClient:
         system_prompt: Optional[str],
         model: Optional[str],
     ) -> LLMResult:
-        content = "\n".join(
-            [
-                "[DRY_RUN] LLM 调用已拦截",
-                f"model={model or self.settings.model}",
-                f"system_prompt={system_prompt or ''}",
-                f"user_prompt={user_prompt}",
-            ]
+        # 返回合法 JSON，保证 chat_json / json.loads 调用方在 dry-run 下也能正常工作
+        content = json.dumps(
+            {
+                "dry_run": True,
+                "model": model or self.settings.model,
+                "system_prompt": system_prompt or "",
+                "user_prompt": user_prompt,
+            },
+            ensure_ascii=False,
         )
         return LLMResult(content=content, model=model or self.settings.model, raw={"dry_run": True})
 

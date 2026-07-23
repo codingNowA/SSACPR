@@ -136,8 +136,10 @@ class ResumeVersionManager:
 
             # 创建版本记录
             now = datetime.now()
+            # 使用单调递增的 id（基于现有最大 id），避免删除后 id 复用导致操作到错误版本
+            new_id = max([v.get("id", 0) for v in metadata["versions"]], default=0) + 1
             version = {
-                "id": len(metadata["versions"]) + 1,
+                "id": new_id,
                 "user_id": user_id,
                 "version": version_num,
                 "title": version_data.title,

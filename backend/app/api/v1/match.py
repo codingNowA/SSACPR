@@ -16,16 +16,34 @@ router = APIRouter(prefix="/match", tags=["岗位匹配"])
 
 
 @router.post("/calculate", summary="计算岗位匹配")
-async def calculate_match(request: JobMatchRequest, _user: dict = Depends(get_current_user),) -> ApiResponse[JobMatchResponse]:
+async def calculate_match(
+    request: JobMatchRequest,
+    use_local_model: bool = Query(default=True, description="使用本地算法（true）或LLM增强（false）"),
+    _user: dict = Depends(get_current_user),
+) -> ApiResponse[JobMatchResponse]:
     """
     根据简历和用户偏好计算岗位匹配度
 
     - 输入简历 ID 和可选的筛选偏好
     - 返回按匹配度分层的岗位推荐列表
     - 包含命中技能、缺失技能和推荐理由
+
+    **匹配模式:**
+    - use_local_model=true: 使用本地规则算法（快速、稳定、不依赖LLM）
+    - use_local_model=false: 使用LLM增强匹配（更智能，但较慢）
     """
     try:
-        result = await job_matcher.match(request)
+        if use_local_model:
+            # 使用本地匹配算法
+            from app.services.local_match_service import get_local_match_service
+            from app.services.job_service import job_service
+
+            local_matcher = get_local_match_service(job_service)
+            result = await local_matcher.match(request)
+        else:
+            # 使用原有的LLM匹配
+            result = await job_matcher.match(request)
+
         return ApiResponse.success(data=result)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -96,7 +114,7 @@ async def explain_match(
             prompt=build_explain_user_prompt(
                 job_title=row["job_title"] or "",
                 company=row["company"],
-                match_score=float(row["match_score"]),
+                match_score=float(row["match_score"]) if row["match_score"] is not None else 0.0,
                 matched_skills=matched_skills or [],
                 missing_skills=missing_skills or [],
             ),

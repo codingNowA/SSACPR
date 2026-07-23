@@ -1,4 +1,4 @@
-.PHONY: help install dev up start down logs clean test lint format init-db seed-data
+.PHONY: help install dev up start down logs clean test lint format init-db seed-data migrate
 
 # Docker Compose 命令（env_file 统一从 backend/.env 读取）
 COMPOSE = docker-compose
@@ -6,17 +6,18 @@ COMPOSE = docker-compose
 # 默认目标
 help:
 	@echo "可用命令："
-	@echo "  make deploy         - 一键部署（构建+启动+初始化+测试数据）"
+	@echo "  make deploy         - 一键部署（构建+启动+初始化+迁移+测试数据）"
 	@echo "  make install        - 安装依赖（Python + Node.js）"
 	@echo "  make dev            - 启动开发环境"
 	@echo "  make up             - 启动所有 Docker 服务"
-	@echo "  make down           - 停止所有服务"
+	@echo "  make restart        - 重启所有服务（重新构建）"
 	@echo "  make logs           - 查看服务日志"
 	@echo "  make clean          - 清理所有容器和数据卷"
 	@echo "  make test           - 运行测试"
 	@echo "  make lint           - 代码检查"
 	@echo "  make format         - 代码格式化"
 	@echo "  make init-db        - 初始化数据库"
+	@echo "  make migrate        - 运行数据库迁移（修复已知问题）"
 	@echo "  make seed-data      - 填充测试数据"
 	@echo "  make opensearch-ik  - 安装 OpenSearch IK 分词器"
 
@@ -29,6 +30,8 @@ deploy:
 	@sleep 15
 	@echo "检查数据库表..."
 	@$(COMPOSE) exec -T postgres psql -U career_user -d career_planning -c "SELECT count(*) as table_count FROM information_schema.tables WHERE table_schema='public';"
+	@echo "运行数据库迁移..."
+	@$(MAKE) migrate
 	@echo "检查岗位数据..."
 	@$(COMPOSE) exec -T postgres psql -U career_user -d career_planning -c "SELECT count(*) as job_count FROM jobs;"
 	@echo "录入测试岗位数据（如不足）..."
@@ -58,17 +61,21 @@ dev: up
 # 启动所有服务（跨平台兼容）
 up:
 	@echo ===== 启动 SSACPR 系统 =====
-	@echo [1/2] 启动 Docker 服务...
-	$(COMPOSE) up -d --build
-	@echo [2/2] 等待服务就绪...
-	@ping 127.0.0.1 -n 16 >nul 2>&1 || sleep 15 2>/dev/null || echo ""
+	@echo [1/3] 启动 Docker 服务...
+	@$(COMPOSE) up -d --build
+	@echo [2/3] 等待服务就绪...
+	@timeout /t 15 /nobreak >nul 2>&1 || exit 0
+	@echo [3/3] 运行数据库迁移...
+	@python scripts/migrate.py
+	@bash scripts/load_questions.sh 2>nul || echo 面试题数据检查完成
+	@echo 检查并导入日志测试数据...
+	@docker cp scripts/seed_logs.sql career-postgres:/tmp/seed_logs.sql
+	@if [ $$(docker exec career-postgres psql -U career_user -d career_planning -t -c "SELECT COUNT(*) FROM logs;" | tr -d ' ') -eq 0 ]; then docker exec career-postgres psql -U career_user -d career_planning -f /tmp/seed_logs.sql && echo 日志测试数据已导入; else echo 日志数据已存在，跳过导入; fi
 	@echo ===== 启动完成 =====
-	@echo
 	@echo 访问地址:
 	@echo   API 文档: http://localhost:8000/docs
 	@echo   前端:     http://localhost:5173
 	@echo   Nginx:    http://localhost:8080
-	@echo
 	@echo 提示: 数据库和测试数据会在首次启动时自动初始化
 
 # 停止所有服务
@@ -100,6 +107,11 @@ format:
 # 初始化数据库（先启动基础设施，再用临时容器执行，不依赖 backend 运行）
 init-db:
 	$(COMPOSE) run --rm --entrypoint python backend scripts/init_db.py
+
+# 运行数据库迁移（跨平台）
+migrate:
+	@python scripts/migrate.py
+	@bash scripts/load_questions.sh 2>nul || echo "面试题数据检查完成"
 
 # 填充测试数据
 seed-data:
@@ -147,9 +159,22 @@ shell-redis:
 status:
 	$(COMPOSE) ps
 
-# 重启服务
+# 重启服务（重新构建并启动，等同于 down + up）
 restart:
-	$(COMPOSE) restart
+	@echo "===== 重启 SSACPR 系统 ====="
+	@echo "[1/4] 停止服务..."
+	@$(COMPOSE) down
+	@echo "[2/4] 重新构建并启动..."
+	@$(COMPOSE) up -d --build
+	@echo "[3/4] 等待服务就绪..."
+	@timeout /t 15 /nobreak >nul 2>&1 || exit 0
+	@echo "[4/4] 运行数据库迁移..."
+	@python scripts/migrate.py
+	@bash scripts/load_questions.sh 2>nul || echo 面试题数据检查完成
+	@echo 检查并导入日志测试数据...
+	@docker cp scripts/seed_logs.sql career-postgres:/tmp/seed_logs.sql
+	@if [ $$(docker exec career-postgres psql -U career_user -d career_planning -t -c "SELECT COUNT(*) FROM logs;" | tr -d ' ') -eq 0 ]; then docker exec career-postgres psql -U career_user -d career_planning -f /tmp/seed_logs.sql && echo 日志测试数据已导入; else echo 日志数据已存在，跳过导入; fi
+	@echo "===== 重启完成 ====="
 
 # 查看后端日志
 logs-backend:

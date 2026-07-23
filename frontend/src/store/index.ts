@@ -1,13 +1,22 @@
-﻿/**
+/**
  * 全局状态管理
  */
 import { create } from 'zustand';
 import type { ResumeData, DiagnosisResult } from '../types';
 
+interface UserInfo {
+  userId: number;
+  username: string;
+  role: string;
+  realName?: string;
+  token: string;
+}
+
 interface AppState {
-  // 当前用户ID（模拟登录）
-  userId: number | null;
-  setUserId: (id: number | null) => void;
+  // 用户信息
+  user: UserInfo | null;
+  setUser: (user: UserInfo | null) => void;
+  logout: () => void;
 
   // 当前简历ID
   currentResumeId: number | null;
@@ -29,12 +38,48 @@ interface AppState {
   reset: () => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
-  userId: 1, // 开发阶段默认用户，接入登录后改为 null
-  setUserId: (id) => set({ userId: id }),
+// 从localStorage初始化用户信息
+const loadUserFromStorage = (): UserInfo | null => {
+  try {
+    const token = localStorage.getItem('token');
+    const userStr = localStorage.getItem('user');
+    if (token && userStr) {
+      const user = JSON.parse(userStr);
+      return { ...user, token };
+    }
+  } catch (e) {
+    console.error('Failed to load user from localStorage:', e);
+  }
+  return null;
+};
 
-  currentResumeId: null,
-  setCurrentResumeId: (id) => set({ currentResumeId: id }),
+export const useStore = create<AppState>((set) => ({
+  user: loadUserFromStorage(),
+  setUser: (user) => set({ user }),
+  logout: () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('currentResumeId'); // 清除当前简历ID
+    set({
+      user: null,
+      currentResumeId: null,
+      resumeData: null,
+      diagnosisResult: null,
+    });
+  },
+
+  currentResumeId: (() => {
+    const stored = localStorage.getItem('currentResumeId');
+    return stored ? parseInt(stored, 10) : null;
+  })(),
+  setCurrentResumeId: (id) => {
+    if (id !== null) {
+      localStorage.setItem('currentResumeId', id.toString());
+    } else {
+      localStorage.removeItem('currentResumeId');
+    }
+    set({ currentResumeId: id });
+  },
 
   resumeData: null,
   setResumeData: (data) => set({ resumeData: data }),
@@ -53,3 +98,6 @@ export const useAppStore = create<AppState>((set) => ({
       loading: false,
     }),
 }));
+
+// 别名导出，兼容 useAppStore 引用
+export const useAppStore = useStore;

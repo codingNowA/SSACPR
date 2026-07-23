@@ -58,6 +58,13 @@ export interface Skill {
 }
 
 export interface ResumeData {
+  id?: number;
+  user_id?: number;
+  file_path?: string;
+  file_type?: string;
+  status?: string;
+  // 后端 GET /resume/{id} 返回的包裹结构，真正的简历内容在 parsed_data 中
+  parsed_data?: any;
   basic_info?: BasicInfo;
   education?: Education[];
   work_experience?: WorkExperience[];
@@ -87,12 +94,15 @@ export interface SuggestionItem {
 
 export interface DiagnosisResult {
   resume_id: number;
-  scores: ResumeScore;
-  suggestions: SuggestionItem[];
+  // 后端评分结构为嵌套对象（total_score / 各维度 {total_score} / dimensions[]），使用宽松类型
+  scores: any;
+  // 优化接口返回的优化建议（general_suggestions / priority_actions / overall_summary 等）
+  optimization?: any;
+  suggestions?: SuggestionItem[];
   optimized_sections?: {
     [key: string]: string;
   };
-  created_at: string;
+  created_at?: string;
 }
 
 export interface ResumeVersion {

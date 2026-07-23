@@ -30,10 +30,13 @@ import {
   TrophyOutlined,
   BulbOutlined,
   FileTextOutlined,
+  ThunderboltOutlined,
+  DownloadOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 import { getResumeVersions, getVersionDetail, deleteVersion } from '../../services/resume';
+import apiClient from '../../services/api';
 import { formatDate, getScoreColor, getScoreLevel } from '../../utils';
-import type { ResumeVersion } from '../../types';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Title, Text, Paragraph } = Typography;
@@ -44,7 +47,6 @@ const SCORE_ITEMS = [
   { key: 'professionalism', label: '专业性', icon: '💼' },
   { key: 'quantification', label: '量化程度', icon: '📊' },
   { key: 'project_depth', label: '项目深度', icon: '🔬' },
-  { key: 'job_match', label: '岗位匹配', icon: '🎯' },
 ];
 
 /** 从 scores 对象中提取分数值（兼容嵌套对象和扁平数值） */
@@ -120,6 +122,8 @@ const ScoreSection: React.FC<{ scores: any }> = ({ scores }) => {
 
 /** 渲染简历内容摘要 */
 const ResumeSummary: React.FC<{ data: any }> = ({ data }) => {
+  const [expanded, setExpanded] = React.useState(false);
+
   if (!data) return <Text type="secondary">暂无简历数据</Text>;
 
   let parsed = typeof data === 'string' ? JSON.parse(data) : data;
@@ -131,6 +135,8 @@ const ResumeSummary: React.FC<{ data: any }> = ({ data }) => {
   const skills = parsed?.skills || [];
   const education = parsed?.education || [];
   const work = parsed?.work_experience || [];
+  const projects = parsed?.project_experience || [];
+  const selfEval = parsed?.self_evaluation || '';
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
@@ -177,25 +183,79 @@ const ResumeSummary: React.FC<{ data: any }> = ({ data }) => {
         <div>
           <Text strong style={{ marginBottom: 8, display: 'block' }}>🏢 工作经历</Text>
           {work.map((w: any, i: number) => (
-            <div key={i} style={{ marginBottom: 4 }}>
-              <Text strong>{w.company}</Text>
-              {w.position && <Text type="secondary"> · {w.position}</Text>}
-              {w.start_date && (
-                <Text type="secondary" style={{ marginLeft: 8 }}>
-                  {w.start_date} ~ {w.end_date || '至今'}
-                </Text>
+            <div key={i} style={{ marginBottom: 8 }}>
+              <div>
+                <Text strong>{w.company}</Text>
+                {w.position && <Text type="secondary"> · {w.position}</Text>}
+                {w.start_date && (
+                  <Text type="secondary" style={{ marginLeft: 8 }}>
+                    {w.start_date} ~ {w.end_date || '至今'}
+                  </Text>
+                )}
+              </div>
+              {expanded && w.description && (
+                <Paragraph style={{ marginTop: 4, marginLeft: 16, color: '#666' }}>
+                  {w.description}
+                </Paragraph>
               )}
             </div>
           ))}
         </div>
       )}
+
+      {/* 项目经验 - 仅在展开时显示 */}
+      {expanded && projects.length > 0 && (
+        <div>
+          <Text strong style={{ marginBottom: 8, display: 'block' }}>📦 项目经验</Text>
+          {projects.map((p: any, i: number) => (
+            <div key={i} style={{ marginBottom: 8 }}>
+              <div>
+                <Text strong>{p.name}</Text>
+                {p.role && <Text type="secondary"> · {p.role}</Text>}
+                {p.start_date && (
+                  <Text type="secondary" style={{ marginLeft: 8 }}>
+                    {p.start_date} ~ {p.end_date || '至今'}
+                  </Text>
+                )}
+              </div>
+              {p.description && (
+                <Paragraph style={{ marginTop: 4, marginLeft: 16, color: '#666' }}>
+                  {p.description}
+                </Paragraph>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 自我评价 - 仅在展开时显示 */}
+      {expanded && selfEval && (
+        <div>
+          <Text strong style={{ marginBottom: 8, display: 'block' }}>💬 自我评价</Text>
+          <Paragraph style={{ color: '#666' }}>{selfEval}</Paragraph>
+        </div>
+      )}
+
+      {/* 展开/收起按钮 */}
+      <Button
+        type="link"
+        onClick={() => setExpanded(!expanded)}
+        style={{ padding: 0 }}
+      >
+        {expanded ? '收起完整内容 ▲' : '展开完整内容 ▼'}
+      </Button>
     </Space>
   );
 };
 
 /** 渲染优化建议 - 兼容后端 general_suggestions/priority_actions/overall_summary 格式 */
 const OptimizationSection: React.FC<{ optimization: any }> = ({ optimization }) => {
-  if (!optimization) return <Text type="secondary">暂无优化建议</Text>;
+  console.log('OptimizationSection 接收到的数据:', optimization);
+
+  if (!optimization) {
+    console.log('优化建议为空');
+    return <Text type="secondary">暂无优化建议</Text>;
+  }
 
   // 兼容多种格式
   const generalSuggestions = optimization?.general_suggestions || [];
@@ -204,7 +264,16 @@ const OptimizationSection: React.FC<{ optimization: any }> = ({ optimization }) 
   const suggestions = optimization?.suggestions || [];
   const hasBackendFormat = generalSuggestions.length > 0 || priorityActions.length > 0 || overallSummary;
 
+  console.log('解析结果:', {
+    generalSuggestions: generalSuggestions.length,
+    priorityActions: priorityActions.length,
+    overallSummary: !!overallSummary,
+    suggestions: suggestions.length,
+    hasBackendFormat
+  });
+
   if (!hasBackendFormat && suggestions.length === 0 && !Array.isArray(optimization)) {
+    console.log('没有找到任何格式的优化建议');
     return <Text type="secondary">暂无优化建议</Text>;
   }
 
@@ -313,12 +382,24 @@ const ResumeVersions: React.FC = () => {
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [userResumeNumber, setUserResumeNumber] = useState<number | null>(null);
 
   useEffect(() => {
     if (resumeId) {
+      loadResumeInfo();
       loadVersions();
     }
   }, [resumeId, page, pageSize]);
+
+  const loadResumeInfo = async () => {
+    if (!resumeId) return;
+    try {
+      const response = await apiClient.get(`/api/v1/resume/${resumeId}/structured`);
+      setUserResumeNumber(response?._user_resume_number || null);
+    } catch (error) {
+      console.error('加载简历信息失败:', error);
+    }
+  };
 
   const loadVersions = async () => {
     if (!resumeId) return;
@@ -343,14 +424,18 @@ const ResumeVersions: React.FC = () => {
 
   const handleViewDetail = async (versionId: number) => {
     try {
+      message.loading({ content: '正在加载详情...', key: 'detail', duration: 0 });
       setDetailModalVisible(true);
       setDetailLoading(true);
       const detail = await getVersionDetail(versionId);
       const data = detail?.data || detail;
+      console.log('版本详情数据:', data);
+      console.log('优化建议数据:', data?.optimization);
       setSelectedVersion(data);
+      message.success({ content: '加载成功', key: 'detail', duration: 1 });
     } catch (error: any) {
       setDetailModalVisible(false);
-      message.error(error || '加载版本详情失败');
+      message.error({ content: error || '加载版本详情失败', key: 'detail' });
     } finally {
       setDetailLoading(false);
     }
@@ -358,11 +443,78 @@ const ResumeVersions: React.FC = () => {
 
   const handleDelete = async (versionId: number) => {
     try {
+      message.loading({ content: '正在删除...', key: 'delete', duration: 0 });
       await deleteVersion(versionId);
-      message.success('版本删除成功！');
+      message.success({ content: '版本删除成功！', key: 'delete' });
       loadVersions();
     } catch (error: any) {
-      message.error(error || '删除失败');
+      message.error({ content: error || '删除失败', key: 'delete' });
+    }
+  };
+
+  const handleDiagnose = async (versionId: number) => {
+    try {
+      message.loading({ content: '正在诊断版本...', key: 'diagnose', duration: 0 });
+      const response = await apiClient.post(`/api/v1/resume/snapshots/${versionId}/diagnose`);
+      message.success({ content: '诊断完成！', key: 'diagnose' });
+      // 重新加载版本列表以显示新的评分
+      loadVersions();
+      // 如果模态框打开着，刷新详情
+      if (detailModalVisible && selectedVersion?.id === versionId) {
+        handleViewDetail(versionId);
+      }
+    } catch (error: any) {
+      message.error({ content: error || '诊断失败', key: 'diagnose' });
+    }
+  };
+
+  const handleDownloadPDF = async (versionId: number, versionName: string) => {
+    const hideLoading = message.loading({ content: '正在生成PDF，请稍候...', key: 'download', duration: 0 });
+    try {
+      const response = await apiClient.get(`/api/v1/resume/snapshots/${versionId}/download`, {
+        responseType: 'blob',
+      });
+
+      // 创建下载链接
+      const url = window.URL.createObjectURL(new Blob([response]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `resume_${versionName}_${versionId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      message.success({ content: 'PDF下载成功！', key: 'download', duration: 2 });
+    } catch (error: any) {
+      message.error({ content: error || '下载失败', key: 'download', duration: 3 });
+    }
+  };
+
+  const handleApplyVersion = async (versionId: number, versionName: string) => {
+    try {
+      message.loading({ content: '正在应用版本...', key: 'apply', duration: 0 });
+
+      // 获取版本详情
+      const versionDetail = await apiClient.get(`/api/v1/resume/snapshots/${versionId}`);
+      const parsedData = versionDetail.parsed_data;
+
+      if (!parsedData) {
+        message.error({ content: '版本数据为空', key: 'apply' });
+        return;
+      }
+
+      // 更新简历的 parsed_data 和 current_version_id
+      await apiClient.put(`/api/v1/resume/${resumeId}/structured`, parsedData, {
+        params: { version_id: versionId }
+      });
+
+      message.success({ content: `已将简历恢复到版本"${versionName}"，点击"编辑简历"查看`, key: 'apply', duration: 3 });
+
+      // 重新加载版本列表
+      loadVersions();
+    } catch (error: any) {
+      message.error({ content: error || '应用版本失败', key: 'apply' });
     }
   };
 
@@ -371,7 +523,12 @@ const ResumeVersions: React.FC = () => {
       title: '版本名称',
       dataIndex: 'version_name',
       key: 'version_name',
-      render: (text) => <strong>{text}</strong>,
+      render: (text, record) => (
+        <Space>
+          {record.is_current && <Tag color="gold">当前版本</Tag>}
+          <strong>{text}</strong>
+        </Space>
+      ),
     },
     {
       title: '版本ID',
@@ -391,15 +548,40 @@ const ResumeVersions: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 160,
+      width: 380,
       render: (_, record) => (
-        <Space>
+        <Space size="small">
           <Button
             type="link"
             icon={<EyeOutlined />}
             onClick={() => handleViewDetail(record.id)}
           >
             查看
+          </Button>
+          {!record.is_current && (
+            <Popconfirm
+              title="确认应用此版本？"
+              description="将覆盖当前简历内容"
+              onConfirm={() => handleApplyVersion(record.id, record.version_name)}
+              okText="确认"
+              cancelText="取消"
+            >
+              <Button type="link" icon={<CheckCircleOutlined />}>
+                应用
+              </Button>
+            </Popconfirm>
+          )}
+          {record.is_current && (
+            <Button type="link" disabled icon={<CheckCircleOutlined />}>
+              已应用
+            </Button>
+          )}
+          <Button
+            type="link"
+            icon={<DownloadOutlined />}
+            onClick={() => handleDownloadPDF(record.id, record.version_name)}
+          >
+            下载
           </Button>
           <Popconfirm
             title="确认删除此版本？"
@@ -426,12 +608,12 @@ const ResumeVersions: React.FC = () => {
                   <HistoryOutlined /> 版本历史
                 </Title>
                 <div style={{ color: 'rgba(0, 0, 0, 0.45)' }}>
-                  简历ID: {resumeId} | 共 {total} 个版本
+                  简历 #{userResumeNumber || resumeId} | 共 {total} 个版本
                 </div>
               </div>
               <Button
                 icon={<ArrowLeftOutlined />}
-                onClick={() => navigate(`/resume/${resumeId}/diagnosis`)}
+                onClick={() => navigate(`/resume/diagnosis/${resumeId}`)}
               >
                 返回诊断
               </Button>
