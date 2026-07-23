@@ -5,6 +5,7 @@ import apiClient from './api';
 import type {
   ResumeData,
   DiagnosisResult,
+  ResumeVersion,
   UploadResponse,
 } from '../types';
 
@@ -16,25 +17,28 @@ export const uploadResume = async (file: File, userId: number): Promise<UploadRe
   formData.append('file', file);
   formData.append('user_id', userId.toString());
 
-  return await apiClient.post('/api/v1/resume/upload', formData, {
+  const response = await apiClient.post('/api/v1/resume/upload', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   });
+  return response;
 };
 
 /**
  * 解析简历
  */
 export const parseResume = async (resumeId: number): Promise<ResumeData> => {
-  return await apiClient.get(`/api/v1/resume/${resumeId}`);
+  const response = await apiClient.get(`/api/v1/resume/${resumeId}`);
+  return response;
 };
 
 /**
  * 诊断简历
  */
 export const diagnoseResume = async (resumeId: number): Promise<DiagnosisResult> => {
-  return await apiClient.post(`/api/v1/resume/${resumeId}/diagnose`);
+  const response = await apiClient.post(`/api/v1/resume/${resumeId}/diagnose`);
+  return response;
 };
 
 /**
@@ -44,16 +48,18 @@ export const optimizeResume = async (
   resumeId: number,
   targetPosition?: string
 ): Promise<DiagnosisResult> => {
-  return await apiClient.post(`/api/v1/resume/${resumeId}/optimize`, {
+  const response = await apiClient.post(`/api/v1/resume/${resumeId}/optimize`, {
     job_title: targetPosition,
   });
+  return response;
 };
 
 /**
  * 获取简历数据
  */
 export const getResumeData = async (resumeId: number): Promise<ResumeData> => {
-  return await apiClient.get(`/api/v1/resume/${resumeId}`);
+  const response = await apiClient.get(`/api/v1/resume/${resumeId}`);
+  return response;
 };
 
 /**
@@ -62,17 +68,15 @@ export const getResumeData = async (resumeId: number): Promise<ResumeData> => {
 export const createResumeVersion = async (
   resumeId: number,
   versionName: string,
-  diagnosisData?: any,  // 包含 scores、optimization、summary
-  parsedData?: any      // 简历内容数据
+  scores?: any,
+  optimization?: any
 ): Promise<any> => {
   const response = await apiClient.post(
     `/api/v1/resume/${resumeId}/snapshots`,
     {
       version_name: versionName,
-      scores: diagnosisData?.scores,
-      optimization: diagnosisData?.optimization,
-      summary: diagnosisData?.summary,
-      parsed_data: parsedData,
+      scores: scores,
+      optimization: optimization,
     }
   );
   return response;

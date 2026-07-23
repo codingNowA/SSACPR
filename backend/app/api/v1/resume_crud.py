@@ -130,70 +130,10 @@ async def parse_resume_by_id(resume_id: int, _user: dict = Depends(get_current_u
         )
 
 
-@router.get("/{resume_id}/diagnosis")
-async def get_diagnosis_result(resume_id: int, _user: dict = Depends(get_current_user)):
-    """
-    获取简历的已有诊断结果（不触发新的诊断）
-
-    如果没有诊断结果，返回 null
-    如果有诊断结果，返回已保存的结果
-
-    Args:
-        resume_id: 简历ID
-
-    Returns:
-        已有的诊断结果，如果不存在则返回 null
-    """
-    try:
-        pool = await get_db_pool()
-        async with pool.acquire() as conn:
-            row = await conn.fetchrow(
-                "SELECT diagnosis_result, parsed_data FROM resumes WHERE id = $1 AND status = 'active'",
-                resume_id
-            )
-
-            if not row:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"简历 {resume_id} 不存在"
-                )
-
-            diagnosis_result = row['diagnosis_result']
-
-            if not diagnosis_result:
-                # 没有诊断结果，返回 null
-                return ApiResponse(
-                    code=200,
-                    message="尚未诊断",
-                    data=None
-                )
-
-            # 如果 diagnosis_result 是字符串，解析它
-            if isinstance(diagnosis_result, str):
-                import json
-                diagnosis_result = json.loads(diagnosis_result)
-
-            # 返回已有的诊断结果
-            return ApiResponse(
-                code=200,
-                message="获取成功",
-                data=diagnosis_result
-            )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"获取诊断结果失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"获取诊断结果失败: {str(e)}"
-        )
-
-
 @router.post("/{resume_id}/diagnose")
 async def diagnose_resume_by_id(resume_id: int, _user: dict = Depends(get_current_user)):
     """
-    诊断已上传的简历（不创建快照）
+    诊断已上传的简历
 
     Args:
         resume_id: 简历ID
@@ -221,7 +161,6 @@ async def diagnose_resume_by_id(resume_id: int, _user: dict = Depends(get_curren
             file_path = row['file_path']
             parsed_data = row['parsed_data']
 
-            # 执行诊断
             # 从 parsed_data 重建文本，避免重复解析文件
             _pd_raw = row['parsed_data']
             if isinstance(_pd_raw, str):
@@ -244,26 +183,13 @@ async def diagnose_resume_by_id(resume_id: int, _user: dict = Depends(get_curren
                 resume_text=resume_text
             )
 
-            # 保存诊断结果到 resumes 表
-            diagnosis_data = {
-                "resume_id": resume_id,
-                "scores": score_result.dict(),
-            }
-
-            await conn.execute(
-                """
-                UPDATE resumes
-                SET diagnosis_result = $1, updated_at = NOW()
-                WHERE id = $2
-                """,
-                json.dumps(diagnosis_data, ensure_ascii=False),
-                resume_id
-            )
-
             return ApiResponse(
                 code=200,
                 message="诊断成功",
-                data=diagnosis_data
+                data={
+                    "resume_id": resume_id,
+                    "scores": score_result.dict()
+                }
             )
     except HTTPException:
         raise
@@ -273,7 +199,6 @@ async def diagnose_resume_by_id(resume_id: int, _user: dict = Depends(get_curren
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"诊断简历失败: {str(e)}"
         )
-
 
 
 @router.get("/{resume_id}/scores")
@@ -287,7 +212,7 @@ async def get_resume_scores(resume_id: int, _user: dict = Depends(get_current_us
     Returns:
         评分结果
     """
-    return await diagnose_resume_by_id(resume_id, _user=_user)
+    return await diagnose_resume_by_id(resume_id)
 
 
 @router.post("/{resume_id}/optimize")

@@ -195,14 +195,9 @@ CREATE TRIGGER update_applications_updated_at BEFORE UPDATE ON applications
 CREATE TRIGGER update_resume_versions_updated_at BEFORE UPDATE ON resume_versions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- 插入默认管理员账户（密码: admin123）
+-- 插入默认管理员账户（密码: admin123，需要在应用中进行哈希处理）
 INSERT INTO users (username, password_hash, email, role, real_name)
-VALUES ('admin', '$2b$12$OVvtXqjuGv5iuvYEQrkekOHvEdGsdlS00dLFgpa.im/tRASHANVq2', 'admin@example.com', 'admin', '系统管理员')
-ON CONFLICT (username) DO NOTHING;
-
--- 插入测试用户账户（密码: user123）
-INSERT INTO users (username, password_hash, email, role, real_name)
-VALUES ('testuser', '$2b$12$iozgovWmsUYB6S9L.ccDGeRkOXc7wGNIzDT7P1QjE/C84PMy59m6W', 'user@example.com', 'student', '测试用户')
+VALUES ('admin', '$2b$12$placeholder_hash', 'admin@example.com', 'admin', '系统管理员')
 ON CONFLICT (username) DO NOTHING;
 
 -- 提示信息
@@ -210,8 +205,5 @@ DO $$
 BEGIN
     RAISE NOTICE '数据库初始化完成！';
     RAISE NOTICE '已创建以下表：users, resumes, jobs, matches, interview_questions, collections, applications, resume_versions, logs';
-    RAISE NOTICE '测试账号:';
-    RAISE NOTICE '  管理员: username=admin, password=admin123';
-    RAISE NOTICE '  学生: username=testuser, password=user123';
-    RAISE NOTICE '请在生产环境中修改默认密码';
+    RAISE NOTICE '默认管理员账户：username=admin, password=admin123（首次登录请修改密码）';
 END $$;

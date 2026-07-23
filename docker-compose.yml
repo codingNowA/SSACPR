@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     ports:
-      - "54321:5432"              # 原 5432 改为 54321
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init.sql
@@ -26,7 +26,7 @@ services:
     container_name: career-redis
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
     ports:
-      - "63791:6379"              # 原 6379 改为 63791
+      - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
@@ -61,8 +61,8 @@ services:
       - opensearch_data:/usr/share/opensearch/data
       - ./docker/opensearch/plugins:/usr/share/opensearch/plugins
     ports:
-      - "9201:9200"              # 原 9200 改为 9201
-      - "9601:9600"              # 原 9600 改为 9601
+      - "9200:9200"
+      - "9600:9600"
     networks:
       - career-network
     healthcheck:
@@ -80,7 +80,7 @@ services:
       - OPENSEARCH_HOSTS=http://opensearch:9200
       - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
     ports:
-      - "5602:5601"              # 原 5601 改为 5602
+      - "5601:5601"
     depends_on:
       opensearch:
         condition: service_healthy
@@ -122,22 +122,23 @@ services:
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
 
-  # React 前端服务（生产模式）
+  # React 前端服务（开发模式）
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: career-frontend
-<<<<<<< Updated upstream
     environment:
-      - VITE_PROXY_TARGET=http://career-backend:8000
+      - VITE_API_BASE_URL=http://localhost:8000
       - VITE_APP_ENV=development
-=======
->>>>>>> Stashed changes
     ports:
-      - "3000:80"
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     networks:
       - career-network
+    command: npm run dev -- --host 0.0.0.0
     restart: unless-stopped
 
   # Nginx 反向代理

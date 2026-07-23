@@ -8,7 +8,6 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 
 from app.api.deps import validate_resume_file, get_user_id
-from app.core.auth import get_current_user
 from app.schemas.resume import (
     ResumeUploadResponse,
     ResumeParseResponse,
@@ -44,7 +43,7 @@ router = APIRouter(prefix="/resume", tags=["简历管理"])
 @router.post("/upload", response_model=ApiResponse[ResumeUploadResponse])
 async def upload_resume(
     file: UploadFile = Depends(validate_resume_file),
-    current_user: dict = Depends(get_current_user),
+    user_id: Optional[int] = Depends(get_user_id),
 ):
     """
     上传简历文件
@@ -62,16 +61,12 @@ async def upload_resume(
 
     Args:
         file: 简历文件
-        current_user: 当前登录用户（从JWT token中提取）
+        user_id: 用户 ID（可选）
 
     Returns:
         上传结果（含 resume_id）
     """
     try:
-        # 从JWT token中获取用户ID
-        user_id = current_user.get("user_id")
-        logger.info(f"收到上传请求: user_id={user_id}, username={current_user.get('username')}, file={file.filename}")
-
         # 1. 保存文件
         file_path, file_type = await file_handler.save_resume(file, user_id)
 
@@ -89,13 +84,9 @@ async def upload_resume(
                 structured_dict = structured_data.dict()
 
                 # 写入数据库
-                logger.info(f"准备写入数据库: user_id={user_id}, type={type(user_id)}")
-                if not user_id:
-                    logger.error(f"user_id为空或None: {user_id}")
-                    raise ValueError("user_id 不能为空")
-
+                uid = user_id or 1  # 开发阶段默认用户
                 resume_id = await save_parsed_data_to_db(
-                    user_id=user_id,
+                    user_id=uid,
                     file_path=file_path,
                     file_type=file_type,
                     structured_data=structured_dict,
@@ -127,279 +118,6 @@ async def upload_resume(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"上传失败: {str(e)}"
-        )
-
-
-@router.get("/list")
-async def list_resumes(
-    page: int = 1,
-    page_size: int = 10,
-    status: Optional[str] = None,
-    current_user: dict = Depends(get_current_user),
-):
-    """
-    获取当前用户的简历列表
-
-    Args:
-        page: 页码
-        page_size: 每页数量
-        status: 状态筛选 (draft/active/archived)
-        current_user: 当前登录用户
-
-    Returns:
-        简历列表
-    """
-    try:
-        from app.db import get_db
-        from sqlalchemy import text
-
-        user_id = current_user.get("user_id")
-        offset = (page - 1) * page_size
-
-        # 构建查询
-        db = next(get_db())
-
-        where_clause = "WHERE user_id = :user_id"
-        params = {"user_id": user_id, "limit": page_size, "offset": offset}
-
-        if status:
-            where_clause += " AND status = :status"
-            params["status"] = status
-
-        # 查询列表
-        query = text(f"""
-            SELECT id, user_id, file_path, file_type, version, status, created_at, updated_at, user_resume_number
-            FROM resumes
-            {where_clause}
-            ORDER BY created_at DESC
-            LIMIT :limit OFFSET :offset
-        """)
-
-        result = db.execute(query, params)
-        rows = result.fetchall()
-
-        # 查询总数
-        count_query = text(f"SELECT COUNT(*) FROM resumes {where_clause}")
-        count_params = {"user_id": user_id}
-        if status:
-            count_params["status"] = status
-        total = db.execute(count_query, count_params).scalar()
-
-        items = [
-            {
-                "id": row[0],
-                "user_id": row[1],
-                "file_path": row[2],
-                "file_type": row[3],
-                "version": row[4],
-                "status": row[5],
-                "created_at": row[6].isoformat() if row[6] else None,
-                "updated_at": row[7].isoformat() if row[7] else None,
-                "user_resume_number": row[8],
-            }
-            for row in rows
-        ]
-
-        return {
-            "items": items,
-            "total": total,
-            "page": page,
-            "page_size": page_size,
-        }
-
-    except Exception as e:
-        logger.error(f"获取简历列表失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"获取简历列表失败: {str(e)}"
-        )
-
-
-@router.delete("/{resume_id}")
-async def delete_resume(
-    resume_id: int,
-    current_user: dict = Depends(get_current_user),
-):
-    """
-    删除简历
-
-    Args:
-        resume_id: 简历ID
-        current_user: 当前登录用户
-
-    Returns:
-        删除结果
-    """
-    try:
-        from app.db import get_db
-        from sqlalchemy import text
-
-        user_id = current_user.get("user_id")
-        db = next(get_db())
-
-        # 检查简历是否属于当前用户
-        check_query = text("SELECT user_id FROM resumes WHERE id = :resume_id")
-        result = db.execute(check_query, {"resume_id": resume_id}).fetchone()
-
-        if not result:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="简历不存在"
-            )
-
-        if result[0] != user_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权删除此简历"
-            )
-
-        # 删除简历（级联删除版本）
-        delete_query = text("DELETE FROM resumes WHERE id = :resume_id")
-        db.execute(delete_query, {"resume_id": resume_id})
-        db.commit()
-
-        return {"message": "删除成功"}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"删除简历失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"删除简历失败: {str(e)}"
-        )
-
-
-@router.get("/{resume_id}/structured")
-async def get_resume_structured(
-    resume_id: int,
-    current_user: dict = Depends(get_current_user),
-):
-    """
-    获取简历的结构化数据
-
-    Args:
-        resume_id: 简历ID
-        current_user: 当前登录用户
-
-    Returns:
-        结构化简历数据（包含 user_resume_number）
-    """
-    try:
-        from app.db import get_db
-        from sqlalchemy import text
-
-        user_id = current_user.get("user_id")
-        db = next(get_db())
-
-        # 检查权限并获取数据（包含 user_resume_number）
-        query = text("SELECT parsed_data, user_resume_number FROM resumes WHERE id = :resume_id AND user_id = :user_id")
-        result = db.execute(query, {"resume_id": resume_id, "user_id": user_id}).fetchone()
-
-        if not result:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="简历不存在或无权访问"
-            )
-
-        # 返回包含 user_resume_number 的数据
-        parsed_data = result[0] or {}
-        user_resume_number = result[1]
-
-        # 如果 parsed_data 是字典，添加 user_resume_number 字段
-        if isinstance(parsed_data, dict):
-            return {**parsed_data, "_user_resume_number": user_resume_number}
-
-        return parsed_data
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"获取简历数据失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"获取简历数据失败: {str(e)}"
-        )
-
-
-@router.put("/{resume_id}/structured")
-async def update_resume_structured(
-    resume_id: int,
-    structured_data: dict,
-    current_user: dict = Depends(get_current_user),
-    version_id: int = None,
-):
-    """
-    更新简历的结构化数据
-
-    Args:
-        resume_id: 简历ID
-        structured_data: 更新后的结构化数据
-        current_user: 当前登录用户
-        version_id: 可选，版本ID，如果提供则同时更新 current_version_id
-
-    Returns:
-        更新结果
-    """
-    try:
-        from app.db import get_db
-        from sqlalchemy import text
-        import json
-
-        user_id = current_user.get("user_id")
-        db = next(get_db())
-
-        # 检查权限
-        check_query = text("SELECT user_id FROM resumes WHERE id = :resume_id")
-        result = db.execute(check_query, {"resume_id": resume_id}).fetchone()
-
-        if not result:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="简历不存在"
-            )
-
-        if result[0] != user_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权修改此简历"
-            )
-
-        # 更新数据，同时更新 current_version_id（如果提供）
-        if version_id is not None:
-            update_query = text("""
-                UPDATE resumes
-                SET parsed_data = :parsed_data,
-                    current_version_id = :version_id,
-                    updated_at = NOW()
-                WHERE id = :resume_id
-            """)
-            db.execute(update_query, {
-                "resume_id": resume_id,
-                "parsed_data": json.dumps(structured_data, ensure_ascii=False),
-                "version_id": version_id
-            })
-        else:
-            update_query = text("""
-                UPDATE resumes
-                SET parsed_data = :parsed_data, updated_at = NOW()
-                WHERE id = :resume_id
-            """)
-            db.execute(update_query, {
-                "resume_id": resume_id,
-                "parsed_data": json.dumps(structured_data, ensure_ascii=False)
-            })
-        db.commit()
-
-        return {"message": "更新成功"}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"更新简历数据失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"更新简历数据失败: {str(e)}"
         )
 
 

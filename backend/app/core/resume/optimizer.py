@@ -3,7 +3,6 @@
 生成可执行的修改建议和面向岗位的优化文案
 """
 import json
-import logging
 from typing import List, Optional, Dict, Any
 
 from app.schemas.resume_structured import ResumeStructuredData
@@ -15,8 +14,6 @@ from app.schemas.resume_optimize import (
     JobTargetedOptimization,
 )
 from app.ai.llm.client import default_llm_client, LLMClientError
-
-logger = logging.getLogger(__name__)
 
 
 class ResumeOptimizerError(Exception):
@@ -98,33 +95,33 @@ class ResumeOptimizer:
         score: ResumeScore,
         focus_areas: Optional[List[str]]
     ) -> List[OptimizationSuggestion]:
-        """生成通用优化建议（优先使用LLM）"""
+        """生成通用优化建议"""
         suggestions = []
 
-        # 策略：优先调用LLM生成所有维度的建议，不设评分阈值
+        # 基于评分结果生成建议
+        # 1. 完整性建议
+        if score.completeness.total_score < 85:
+            suggestions.extend(
+                self._generate_completeness_suggestions(data, score.completeness)
+            )
 
-        # 1. 完整性建议（完整性主要是缺失字段，用硬编码更合适）
-        logger.warning(f"[SUGGEST] 完整性评分: {score.completeness.total_score}")
-        if score.completeness.missing_fields:
-            suggestions.extend(self._generate_completeness_suggestions(data, score.completeness))
+        # 2. 专业性建议
+        if score.professionalism.total_score < 80:
+            suggestions.extend(
+                await self._generate_professionalism_suggestions(data, score.professionalism)
+            )
 
-        # 2. 专业性建议（始终调用LLM）
-        logger.warning(f"[SUGGEST] 专业性评分: {score.professionalism.total_score}")
-        logger.warning(f"[SUGGEST] 调用LLM生成专业性建议")
-        prof_suggestions = await self._generate_professionalism_suggestions(data, score.professionalism)
-        suggestions.extend(prof_suggestions)
+        # 3. 量化建议
+        if score.quantification.total_score < 70:
+            suggestions.extend(
+                await self._generate_quantification_suggestions(data, score.quantification)
+            )
 
-        # 3. 量化建议（始终调用LLM）
-        logger.warning(f"[SUGGEST] 量化评分: {score.quantification.total_score}")
-        logger.warning(f"[SUGGEST] 调用LLM生成量化建议")
-        quant_suggestions = await self._generate_quantification_suggestions(data, score.quantification)
-        suggestions.extend(quant_suggestions)
-
-        # 4. 项目深度建议（始终调用LLM）
-        logger.warning(f"[SUGGEST] 项目深度评分: {score.project_depth.total_score}")
-        logger.warning(f"[SUGGEST] 调用LLM生成项目深度建议")
-        proj_suggestions = await self._generate_project_suggestions(data, score.project_depth)
-        suggestions.extend(proj_suggestions)
+        # 4. 项目深度建议
+        if score.project_depth.total_score < 70:
+            suggestions.extend(
+                await self._generate_project_suggestions(data, score.project_depth)
+            )
 
         # 按优先级排序
         priority_order = {"高": 0, "中": 1, "低": 2}
@@ -225,12 +222,10 @@ class ResumeOptimizer:
 2. 时间格式是否统一
 3. 描述是否详细充分
 
-**重要**：如果要指出具体问题，current_content 应该从用户简历中**真实提取**原文，不要编造示例。如果无法获取真实内容，将 current_content 设为 null。
-
 请以JSON格式返回建议列表，每条建议包含：
 - title: 建议标题
 - description: 问题描述
-- current_content: 当前内容示例（从简历真实提取，或设为 null）
+- current_content: 当前内容示例
 - suggested_content: 建议修改后的内容
 - reason: 修改原因
 """
@@ -243,21 +238,14 @@ class ResumeOptimizer:
 工作经历数量：{len(data.work_experience)}
 项目经验数量：{len(data.project_experience)}
 
-简历实际内容示例：
-工作经历：{json.dumps([{"company": exp.company, "position": exp.position, "time": f"{exp.start_date} - {exp.end_date}", "achievements": exp.achievements[:2] if exp.achievements else []} for exp in data.work_experience[:2]], ensure_ascii=False)}
-
-项目经验：{json.dumps([{"name": proj.name, "time": f"{proj.start_date} - {proj.end_date}", "achievements": proj.achievements[:2] if proj.achievements else []} for proj in data.project_experience[:2]], ensure_ascii=False)}
-
-请给出2-3条最重要的专业性改进建议，current_content 必须从上述实际内容中提取。"""
+请给出2-3条最重要的专业性改进建议。"""
 
         try:
-            logger.warning(f"[LLM] 调用大模型生成专业性建议...")
             result = await self.llm_client.generate_text(
                 user_prompt,
                 system_prompt=system_prompt,
                 temperature=0.3
             )
-            logger.warning(f"[LLM] 大模型调用完成，返回长度: {len(result) if result else 0}")
 
             # 尝试解析JSON
             try:
@@ -314,104 +302,49 @@ class ResumeOptimizer:
         data: ResumeStructuredData,
         quantification_score
     ) -> List[OptimizationSuggestion]:
-        """生成量化建议（使用LLM）"""
+        """生成量化建议"""
         suggestions = []
 
-        # 构建prompt
-        system_prompt = """你是一位专业的简历顾问。请分析简历中缺乏量化数据的描述，给出具体的量化优化建议。
-
-重点关注：
-1. 识别可以量化但未量化的成果描述
-2. 给出具体的量化改写建议
-3. 提供真实可信的量化示例
-
-**重要**：current_content 必须从用户提供的"简历中缺乏量化的描述示例"中**原文摘录**，不要自己编造内容。
-
-请以JSON格式返回建议列表，每条建议包含：
-- title: 建议标题
-- description: 问题描述
-- current_content: 当前非量化的描述（必须从提供的示例中原文摘录）
-- suggested_content: 量化后的描述建议
-- reason: 为什么要量化
-"""
+        if quantification_score.total_score < 40:
+            priority = "高"
+        elif quantification_score.total_score < 70:
+            priority = "中"
+        else:
+            return suggestions
 
         # 收集非量化的成果描述
-        non_quantified_examples = []
+        non_quantified = []
         for exp in data.work_experience:
             for achievement in exp.achievements or []:
                 if not self._is_quantified(achievement):
-                    non_quantified_examples.append(f"工作成果: {achievement}")
-                    if len(non_quantified_examples) >= 3:
+                    non_quantified.append(achievement)
+                    if len(non_quantified) >= 3:
                         break
 
         for proj in data.project_experience:
             for achievement in proj.achievements or []:
                 if not self._is_quantified(achievement):
-                    non_quantified_examples.append(f"项目成果: {achievement}")
-                    if len(non_quantified_examples) >= 3:
+                    non_quantified.append(achievement)
+                    if len(non_quantified) >= 3:
                         break
 
-        examples_text = "\n".join(non_quantified_examples[:5]) if non_quantified_examples else "暂无具体示例"
-
-        user_prompt = f"""简历量化评分：{quantification_score.total_score}
-量化率：{quantification_score.quantification_rate:.0%}
-
-简历中缺乏量化的描述示例：
-{examples_text}
-
-请给出2-3条最重要的量化改进建议，帮助将这些描述改写为包含具体数据的版本。"""
-
-        try:
-            logger.warning(f"[LLM] 调用大模型生成量化建议...")
-            result = await self.llm_client.generate_text(
-                user_prompt,
-                system_prompt=system_prompt,
-                temperature=0.3
-            )
-            logger.warning(f"[LLM] 大模型调用完成，返回长度: {len(result) if result else 0}")
-
-            # 尝试解析JSON
-            try:
-                llm_suggestions = json.loads(result)
-                if isinstance(llm_suggestions, list):
-                    for item in llm_suggestions[:3]:
-                        suggestions.append(OptimizationSuggestion(
-                            category="量化程度",
-                            priority="高" if quantification_score.total_score < 40 else "中",
-                            title=item.get("title", "增加量化数据"),
-                            description=item.get("description", ""),
-                            current_content=item.get("current_content"),
-                            suggested_content=item.get("suggested_content", ""),
-                            reason=item.get("reason", ""),
-                            examples=[]
-                        ))
-            except json.JSONDecodeError:
-                logger.warning("[LLM] JSON解析失败，使用硬编码兜底")
-                pass
-
-        except Exception as e:
-            logger.warning(f"[LLM] 调用失败: {e}，使用硬编码兜底")
-            pass
-
-        # 如果LLM失败或没有建议，使用硬编码兜底
-        if not suggestions:
-            if quantification_score.total_score < 70:
-                priority = "高" if quantification_score.total_score < 40 else "中"
-                current_example = non_quantified_examples[0] if non_quantified_examples else "提升了系统性能"
-                suggestions.append(OptimizationSuggestion(
-                    category="量化程度",
-                    priority=priority,
-                    title="增加量化数据",
-                    description=f"当前量化率仅{quantification_score.quantification_rate:.0%}，大部分成果描述缺少具体数据",
-                    current_content=current_example,
-                    suggested_content=f"{current_example}，响应时间降低40%，从500ms优化到300ms",
-                    reason="量化的成果更有说服力，能直观展示你的贡献",
-                    examples=[
-                        "优化数据库查询，查询速度提升60%",
-                        "负责3个核心模块开发，代码量约8000行",
-                        "支持日均10万用户访问，系统稳定性99.9%"
-                    ]
-                ))
+        if non_quantified:
+            current_example = non_quantified[0] if non_quantified else "提升了系统性能"
+            suggestions.append(OptimizationSuggestion(
+                category="量化程度",
+                priority=priority,
+                title="增加量化数据",
+                description=f"当前量化率仅{quantification_score.quantification_rate:.0%}，大部分成果描述缺少具体数据",
+                current_content=current_example,
+                suggested_content=f"{current_example}，响应时间降低40%，从500ms优化到300ms",
+                reason="量化的成果更有说服力，能直观展示你的贡献",
+                examples=[
+                    "优化数据库查询，查询速度提升60%",
+                    "负责3个核心模块开发，代码量约8000行",
+                    "支持日均10万用户访问，系统稳定性99.9%",
+                    "管理5人开发团队，按时交付15个功能需求"
+                ]
+            ))
 
         return suggestions
 
@@ -420,103 +353,55 @@ class ResumeOptimizer:
         data: ResumeStructuredData,
         project_score
     ) -> List[OptimizationSuggestion]:
-        """生成项目深度建议（使用LLM）"""
+        """生成项目深度建议"""
         suggestions = []
 
-        # 构建prompt
-        system_prompt = """你是一位专业的简历顾问。请分析简历中的项目经验，给出具体的优化建议。
+        if project_score.project_count == 0:
+            suggestions.append(OptimizationSuggestion(
+                category="项目经验",
+                priority="高",
+                title="添加项目经验",
+                description="简历中完全缺少项目经历",
+                current_content="无",
+                suggested_content="添加至少2-3个有代表性的项目，包括项目背景、职责、技术栈和成果",
+                reason="项目经验是技术能力的重要体现",
+                examples=["电商后台管理系统", "智能推荐引擎", "数据分析平台"]
+            ))
+        elif project_score.project_count < 3:
+            suggestions.append(OptimizationSuggestion(
+                category="项目经验",
+                priority="中",
+                title="增加项目数量",
+                description=f"当前仅有{project_score.project_count}个项目，建议补充到3个",
+                current_content=f"当前{project_score.project_count}个项目",
+                suggested_content="补充更多有代表性的项目，展示技术广度",
+                reason="多样化的项目经验能展示更全面的能力",
+                examples=[]
+            ))
 
-重点关注：
-1. 项目描述的深度和完整性
-2. 技术栈的详细程度
-3. 项目成果的具体性和量化
-4. 个人职责和贡献的清晰度
+        if project_score.avg_tech_stack_count < 3:
+            suggestions.append(OptimizationSuggestion(
+                category="项目经验",
+                priority="中",
+                title="补充技术栈信息",
+                description=f"项目的技术栈描述不够详细，平均仅{project_score.avg_tech_stack_count:.1f}项",
+                current_content="使用Python开发",
+                suggested_content="使用Python + FastAPI + PostgreSQL + Redis + Docker，前端使用React + TypeScript",
+                reason="详细的技术栈能展示技术能力和项目复杂度",
+                examples=[]
+            ))
 
-**重要**：current_content 必须从用户提供的"当前项目信息"中**真实提取**，不要编造内容。
-
-请以JSON格式返回建议列表，每条建议包含：
-- title: 建议标题
-- description: 问题描述
-- current_content: 当前的项目描述示例（从提供的实际项目中提取）
-- suggested_content: 优化后的描述
-- reason: 优化理由
-"""
-
-        # 构建项目信息
-        projects_info = []
-        for proj in data.project_experience:
-            tech_stack = " + ".join(proj.tech_stack) if proj.tech_stack else "未指定"
-            achievements_text = "; ".join(proj.achievements[:2]) if proj.achievements else "无"
-            projects_info.append(f"项目：{proj.name or '未命名'} | 技术栈：{tech_stack} | 成果：{achievements_text}")
-
-        projects_text = "\n".join(projects_info) if projects_info else "暂无项目经验"
-
-        user_prompt = f"""简历项目深度评分：{project_score.total_score}
-项目数量：{project_score.project_count}
-平均技术栈数量：{project_score.avg_tech_stack_count:.1f}
-平均成果数量：{project_score.avg_achievement_count:.1f}
-
-当前项目信息：
-{projects_text}
-
-请给出2-3条最重要的项目优化建议，帮助提升项目描述的深度和专业性。"""
-
-        try:
-            logger.warning(f"[LLM] 调用大模型生成项目建议...")
-            result = await self.llm_client.generate_text(
-                user_prompt,
-                system_prompt=system_prompt,
-                temperature=0.3
-            )
-            logger.warning(f"[LLM] 大模型调用完成，返回长度: {len(result) if result else 0}")
-
-            # 尝试解析JSON
-            try:
-                llm_suggestions = json.loads(result)
-                if isinstance(llm_suggestions, list):
-                    for item in llm_suggestions[:3]:
-                        suggestions.append(OptimizationSuggestion(
-                            category="项目经验",
-                            priority="中",
-                            title=item.get("title", "优化项目描述"),
-                            description=item.get("description", ""),
-                            current_content=item.get("current_content"),
-                            suggested_content=item.get("suggested_content", ""),
-                            reason=item.get("reason", ""),
-                            examples=[]
-                        ))
-            except json.JSONDecodeError:
-                logger.warning("[LLM] JSON解析失败，使用硬编码兜底")
-                pass
-
-        except Exception as e:
-            logger.warning(f"[LLM] 调用失败: {e}，使用硬编码兜底")
-            pass
-
-        # 如果LLM失败或没有建议，使用硬编码兜底
-        if not suggestions:
-            if project_score.project_count == 0:
-                suggestions.append(OptimizationSuggestion(
-                    category="项目经验",
-                    priority="高",
-                    title="添加项目经验",
-                    description="简历中完全缺少项目经历",
-                    current_content="无",
-                    suggested_content="添加至少2-3个有代表性的项目，包括项目背景、职责、技术栈和成果",
-                    reason="项目经验是技术能力的重要体现",
-                    examples=["电商后台管理系统", "智能推荐引擎", "数据分析平台"]
-                ))
-            elif project_score.avg_tech_stack_count < 3:
-                suggestions.append(OptimizationSuggestion(
-                    category="项目经验",
-                    priority="中",
-                    title="补充技术栈信息",
-                    description=f"项目的技术栈描述不够详细，平均仅{project_score.avg_tech_stack_count:.1f}项",
-                    current_content="使用Python开发",
-                    suggested_content="使用Python + FastAPI + PostgreSQL + Redis + Docker，前端使用React + TypeScript",
-                    reason="详细的技术栈能展示技术能力和项目复杂度",
-                    examples=[]
-                ))
+        if project_score.avg_achievement_count < 2:
+            suggestions.append(OptimizationSuggestion(
+                category="项目经验",
+                priority="中",
+                title="丰富项目成果描述",
+                description=f"项目成果描述较少，平均仅{project_score.avg_achievement_count:.1f}条",
+                current_content="完成了项目开发",
+                suggested_content="列出具体成果：1) 实现了用户认证模块，支持5000+并发；2) 优化查询性能，响应时间降低50%；3) 编写了完整的API文档和测试用例",
+                reason="具体的成果能证明项目价值和个人贡献",
+                examples=[]
+            ))
 
         return suggestions
 
@@ -583,18 +468,9 @@ class ResumeOptimizer:
             # 解析LLM返回
             llm_result = json.loads(result)
 
-            # LLM 可能返回合法 JSON 但不是对象（如列表/字符串），此时回退到基础版本
-            if not isinstance(llm_result, dict):
-                return self._generate_basic_job_targeted(data, score, job_title)
-
             # 构建OptimizedSection对象
             optimized_sections = []
-            _sections = llm_result.get("optimized_sections") or []
-            if not isinstance(_sections, list):
-                _sections = []
-            for section_data in _sections:
-                if not isinstance(section_data, dict):
-                    continue
+            for section_data in llm_result.get("optimized_sections", []):
                 optimized_sections.append(OptimizedSection(
                     section=section_data.get("section", ""),
                     original=section_data.get("original", ""),
