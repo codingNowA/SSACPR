@@ -24,37 +24,18 @@ import {
   TrophyOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
-import apiClient from '../../services/api';
-import axios from 'axios';
+import { getRandomQuestions, evaluateAnswer, Question, InterviewFeedback } from '../../services/interview';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
-
-interface Question {
-  id: number;
-  category: string;
-  difficulty: string;
-  question?: string;
-  question_text?: string;
-  answer_points?: string;
-}
-
-interface Feedback {
-  score: number;
-  overall_assessment: string;
-  strengths: string[];
-  weaknesses: string[];
-  suggestions: string[];
-  sample_answer?: string;
-}
 
 const MockInterview: React.FC = () => {
   const [question, setQuestion] = useState('');
   const [customQuestion, setCustomQuestion] = useState('');
   const [answer, setAnswer] = useState('');
   const [loading, setLoading] = useState(false);
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [feedback, setFeedback] = useState<InterviewFeedback | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -68,17 +49,15 @@ const MockInterview: React.FC = () => {
   const loadQuestions = async () => {
     setLoadingQuestions(true);
     try {
-      const response = await axios.get('/api/v1/interview-exam/questions', {
-        params: { count: 100 },
-      });
-      const rawData = response.data?.data || [];
+      const response = await getRandomQuestions(100);
+      const rawData = response.data || [];
 
-      // 映射字段名，与 Exam.tsx 保持一致
+      // 映射字段名，统一使用 question 字段
       const mappedData = rawData.map((q: any) => ({
         id: q.id,
         category: q.category,
         difficulty: q.difficulty,
-        question: q.question_text || q.question || '', // 关键：统一使用 question 字段
+        question: q.question_text || q.question || '',
         answer_points: q.answer_points,
         related_skills: q.related_skills,
       }));
@@ -130,18 +109,15 @@ const MockInterview: React.FC = () => {
     setFeedback(null);
 
     try {
-      const response = await apiClient.post('/api/v1/interview-mock/evaluate', {
-        question: question.trim(),
-        answer: answer.trim(),
-      });
+      const result = await evaluateAnswer(question.trim(), answer.trim());
 
-      // API 客户端的响应拦截器已经解包了 {code, data}，response 直接是 data 部分
-      const data = response as any;
-      if (data?.feedback) {
-        setFeedback(data.feedback);
+      // 处理返回的反馈数据
+      if (result?.feedback) {
+        setFeedback(result.feedback);
         message.success('评估完成');
       } else {
-        message.error('评估失败，请重试');
+        setFeedback(result);
+        message.success('评估完成');
       }
     } catch (error: any) {
       message.error(error?.message || error || '评估失败');

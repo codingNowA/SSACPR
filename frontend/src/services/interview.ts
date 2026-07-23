@@ -49,6 +49,40 @@ export interface InterviewPrepResponse {
   recommendations: string[];
 }
 
+export interface Question {
+  id: number;
+  category: string;
+  difficulty: string;
+  question?: string;
+  question_text?: string;
+  answer_points?: string;
+  reference_answer?: string;
+  related_skills?: string[];
+  created_at?: string;
+}
+
+export interface QuestionsResponse {
+  data: Question[];
+  total: number;
+}
+
+export interface QuestionsListResponse {
+  data: Question[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages?: number;
+}
+
+export interface InterviewFeedback {
+  score: number;
+  overall_assessment: string;
+  strengths: string[];
+  weaknesses: string[];
+  suggestions: string[];
+  sample_answer?: string;
+}
+
 /**
  * 获取面试准备方案
  */
@@ -60,4 +94,41 @@ export const getInterviewPrep = async (
     params: { job_id: jobId, resume_id: resumeId },
   });
   return response.data;
+};
+
+/**
+ * 随机抽取面试题
+ */
+export const getRandomQuestions = async (count: number = 10): Promise<QuestionsResponse> => {
+  const response = await apiClient.get('/api/v1/interview-exam/questions', {
+    params: { count },
+  });
+  return response;
+};
+
+/**
+ * 分页浏览面试题库
+ */
+export const listQuestions = async (params: {
+  page?: number;
+  page_size?: number;
+  category?: string;
+  difficulty?: string;
+  keyword?: string;
+}): Promise<QuestionsListResponse> => {
+  const response = await apiClient.get('/api/v1/interview-exam/questions/list', {
+    params,
+  });
+  return response;
+};
+
+/**
+ * AI评估面试回答
+ */
+export const evaluateAnswer = async (question: string, answer: string): Promise<InterviewFeedback> => {
+  const response = await apiClient.post('/api/v1/interview-mock/evaluate', {
+    question,
+    answer,
+  });
+  return response;
 };
